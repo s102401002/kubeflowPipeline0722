@@ -26,7 +26,7 @@ def load_data(data_output: Output[Artifact]):
     standard_name_mapping = {
         'gender': ['gender', 'gen', 'Gender', 'sex', 'Sex'],
         'age': ['age', 'Age', 'AGE'],
-        'bmi': ['bmi', 'BMI', 'Bmi'],
+        'bmi': ['bmi', 'BMI', 'Bmi', 'bodymassindex'],
         'HbA1c_level': ['HbA1c_level', 'HbA1c', 'hba1c'],
         'blood_glucose_level': ['blood_glucose_level', 'glucose', 'BloodGlucose'],
         'diabetes': ['diabetes', 'Diabetes']
