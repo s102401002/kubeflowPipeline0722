@@ -1,0 +1,12 @@
+piVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nas-nfs-pvc
+spec:
+  storageClassName: nas-nfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi # same to pv
+# kubectl apply -f nas-nfs-pvc.yaml

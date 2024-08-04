@@ -17,20 +17,22 @@ DF = NewType('DF', DataFrame)
     base_image='python:3.9',
     packages_to_install=['pandas==2.2.2']
 )
-def load_data(data_output: Output[Artifact], nfs_mount_path: str):
+def load_data(data_output: Output[Artifact]):
     import pandas as pd
     import os
 
-    csv_files = [f for f in os.listdir(nfs_mount_path) if f.endswith('.csv')]
-    
+    nas_mount_path = '/mnt/nas'  # same to claim in pv
+
+    csv_files = [f for f in os.listdir(nas_mount_path) if f.endswith('.csv')]
+
+    if not csv_files:
+        raise ValueError(f"No CSV files found in {nas_mount_path}")
+
     datas = []
     for csv_file in csv_files:
-        file_path = os.path.join(nfs_mount_path, csv_file)
+        file_path = os.path.join(nas_mount_path, csv_file)
         df = pd.read_csv(file_path)
         datas.append(df)
-
-    if not datas:
-        raise ValueError(f"No CSV files found in {nfs_mount_path}")
 
     standard_name_mapping = {
         'gender': ['gender', 'gen', 'Gender', 'sex', 'Sex'],
@@ -49,18 +51,23 @@ def load_data(data_output: Output[Artifact], nfs_mount_path: str):
                     break
 
     df_data = pd.concat(datas, ignore_index=True)
-    
+
     df_data = df_data.drop(df_data[df_data['diabetes'] == 'No Info'].index)
     df_data = df_data[['gender','age', 'bmi', 'HbA1c_level', 'blood_glucose_level', 'diabetes']]
     df_data = df_data.dropna(thresh=4)
-    
+
     gender_map = {'Male': 0 , 'Female': 1  , 'Other': 2}
     df_data['gender'] = df_data['gender'].map(gender_map)
     df_data = df_data[df_data['gender'] != 2]
-    df_data['age'] = df_data['age'].replace('No Info', df_data['age'].mean())
-    df_data['bmi'] = df_data['bmi'].replace('No Info', df_data['bmi'].mean())
-    df_data['HbA1c_level'] = df_data['HbA1c_level'].replace('No Info', df_data['HbA1c_level'].mean())
-    df_data['blood_glucose_level'] = df_data['blood_glucose_level'].replace('No Info', df_data['blood_glucose_level'].mean())
+    df_data['age'] = pd.to_numeric(df_data['age'], errors='coerce')
+    df_data['bmi'] = pd.to_numeric(df_data['bmi'], errors='coerce')
+    df_data['HbA1c_level'] = pd_to_numeric(df_data['HbA1c_level'], errors='coerce')
+    df_data['blood_glucose_level'] = pd_to_numeric(df_data['blood_glucose_level'], errors='coerce')
+
+    df_data['age'] = df_data['age'].fillna(df_data['age'].mean())
+    df_data['bmi'] = df_data['bmi'].fillna(df_data['bmi'].mean())
+    df_data['HbA1c_level'] = df_data['HbA1c_level'].fillna(df_data['HbA1c_level'].mean())
+    df_data['blood_glucose_level'] = df_data['blood_glucose_level'].fillna(df_data['blood_glucose_level'].mean())
 
     df_data.to_csv(data_output.path, index=False)
 
@@ -134,7 +141,13 @@ def evaluate_model(model_path: Input[Artifact], x_test: Input[Artifact], y_test:
     description='Using kubeflow pipeline to train and evaluate a diabetes prediction model'
 )
 def diabetes_prediction_pipeline(nfs_mount_path: str = '/mnt/nfs') -> str:
-    load_data_task = load_data(nfs_mount_path=nfs_mount_path)
+    vop = dsl.VolumeOp(
+        name="create_volume",
+        resource_name="nas-nfs-pvc",
+        modes=dsl.VOLUME_MODE_RWM
+    )
+
+    load_data_task = load_data().add_pvolumes({"/mnt/nas": vop.volume})
 
     prepare_data_task = prepare_data(data_input=load_data_task.outputs['data_output'])
     
