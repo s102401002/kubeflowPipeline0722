@@ -129,23 +129,6 @@ def evaluate_model(model_path: Input[Artifact], x_test: Input[Artifact], y_test:
     
     return f'Test accuracy: {accuracy}'
 
-@dsl.component(
-    base_image='python:3.9',
-    packages_to_install=['joblib==1.4.2']
-)
-def save_model_to_nfs(model_path: Input[Artifact], nfs_mount_path: str):
-    import joblib
-    import os
-
-    model = joblib.load(model_path.path)
-
-    nfs_model_path = os.path.join(nfs_mount_path, 'model.joblib')
-
-    joblib.dump(model, nfs_model_path)
-
-    return f"Model saved to NFS at {nfs_model_path}"
-
-
 @dsl.pipeline(
     name='Diabetes Prediction Pipeline',
     description='Using kubeflow pipeline to train and evaluate a diabetes prediction model'
@@ -166,12 +149,7 @@ def diabetes_prediction_pipeline(nfs_mount_path: str = '/mnt/nfs') -> str:
         y_test = prepare_data_task.outputs['y_test_output']
     )
     
-    save_model_task = save_model_to_nfs(
-        model_path=train_model_task.outputs['train_model_output'],
-        nfs_mount_path=nfs_mount_path
-    )
-    
-    return f"{evaluate_model_task.output}\n{save_model_task.output}"
+    return f"Model training complete. {evaluate_model_task.output}"
 
 if __name__ == '__main__':
     kfp.compiler.Compiler().compile(diabetes_prediction_pipeline, 'diabetes_prediction_pipeline_xgboost.yaml')
