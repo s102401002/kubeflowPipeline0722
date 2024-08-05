@@ -5,8 +5,8 @@ from typing import NewType
 import kfp
 import kfp.compiler
 
-from kfp import dsl
-from kfp.dsl import OutputPath, InputPath, Input, Output, Artifact
+from kfp import dsl, kubernetes
+from kfp.dsl import OutputPath, InputPath, Input, Output, Artifact, Model, Metrics
 
 from pandas import DataFrame
 # from kfp.components import func_to_container_op
@@ -17,11 +17,11 @@ DF = NewType('DF', DataFrame)
     base_image='python:3.9',
     packages_to_install=['pandas==2.2.2']
 )
-def load_data(data_output: Output[Artifact]):
+def load_data(nas_mount_path: str, data_output: Output[Artifact]):
     import pandas as pd
     import os
 
-    nas_mount_path = '/mnt/nas'  # same to claim in pv
+    #nas_mount_path = '/volume1/datasets-raw'  # same to claim in pv
 
     csv_files = [f for f in os.listdir(nas_mount_path) if f.endswith('.csv')]
 
@@ -61,8 +61,8 @@ def load_data(data_output: Output[Artifact]):
     df_data = df_data[df_data['gender'] != 2]
     df_data['age'] = pd.to_numeric(df_data['age'], errors='coerce')
     df_data['bmi'] = pd.to_numeric(df_data['bmi'], errors='coerce')
-    df_data['HbA1c_level'] = pd_to_numeric(df_data['HbA1c_level'], errors='coerce')
-    df_data['blood_glucose_level'] = pd_to_numeric(df_data['blood_glucose_level'], errors='coerce')
+    df_data['HbA1c_level'] = pd.to_numeric(df_data['HbA1c_level'], errors='coerce')
+    df_data['blood_glucose_level'] = pd.to_numeric(df_data['blood_glucose_level'], errors='coerce')
 
     df_data['age'] = df_data['age'].fillna(df_data['age'].mean())
     df_data['bmi'] = df_data['bmi'].fillna(df_data['bmi'].mean())
@@ -104,7 +104,7 @@ def prepare_data(
     base_image='python:3.9',
     packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2', 'xgboost==2.0.3']
 )
-def train_model(x_train: Input[Artifact], y_train: Input[Artifact], train_model_output: Output[Artifact]):
+def train_model(x_train: Input[Artifact], y_train: Input[Artifact], train_model_output: Output[Model]):
     import pandas as pd
     from xgboost import XGBClassifier
     import joblib
@@ -121,7 +121,7 @@ def train_model(x_train: Input[Artifact], y_train: Input[Artifact], train_model_
     base_image='python:3.9',
     packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2', 'xgboost==2.0.3']
 )
-def evaluate_model(model_path: Input[Artifact], x_test: Input[Artifact], y_test: Input[Artifact]) -> str:
+def evaluate_model(model_path: Input[Model], x_test: Input[Artifact], y_test: Input[Artifact], result: Output[Metrics]):
     import pandas as pd
     from sklearn.metrics import accuracy_score
     import joblib
@@ -134,20 +134,24 @@ def evaluate_model(model_path: Input[Artifact], x_test: Input[Artifact], y_test:
     y_pred = model.predict(x_test_df)
     accuracy = accuracy_score(y_test_df, y_pred)
     
-    return f'Test accuracy: {accuracy}'
+    result.log_metric('accuracy', accuracy)
 
 @dsl.pipeline(
     name='Diabetes Prediction Pipeline',
     description='Using kubeflow pipeline to train and evaluate a diabetes prediction model'
 )
-def diabetes_prediction_pipeline(nfs_mount_path: str = '/mnt/nfs') -> str:
+def diabetes_prediction_pipeline(nfs_mount_path: str = '/mnt/datasets') -> Metrics:
+    '''
     vop = dsl.VolumeOp(
         name="create_volume",
         resource_name="nas-nfs-pvc",
         modes=dsl.VOLUME_MODE_RWM
     )
+    '''
 
-    load_data_task = load_data().add_pvolumes({"/mnt/nas": vop.volume})
+    load_data_task = load_data(nas_mount_path=nfs_mount_path)\
+        #.add_pvolumes({"/volume1/datasets-raw": vop.volume})
+    kubernetes.mount_pvc(task=load_data_task, pvc_name='nas-nfs-pvc', mount_path='/mnt/datasets')
 
     prepare_data_task = prepare_data(data_input=load_data_task.outputs['data_output'])
     
@@ -156,13 +160,15 @@ def diabetes_prediction_pipeline(nfs_mount_path: str = '/mnt/nfs') -> str:
         y_train = prepare_data_task.outputs['y_train_output']
     )
     
-    evaluate_model_task = evaluate_model(
+    evaluate_task = evaluate_model(
         model_path = train_model_task.outputs['train_model_output'], 
         x_test = prepare_data_task.outputs['x_test_output'], 
         y_test = prepare_data_task.outputs['y_test_output']
     )
+
+    return evaluate_task.outputs['result']
     
-    return f"Model training complete. {evaluate_model_task.output}"
+    #return f"Model training complete. {evaluate_model_task.output}"
 
 if __name__ == '__main__':
     kfp.compiler.Compiler().compile(diabetes_prediction_pipeline, 'diabetes_prediction_pipeline_xgboost.yaml')
