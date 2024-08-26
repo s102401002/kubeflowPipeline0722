@@ -1,0 +1,317 @@
+# PIPELINE DEFINITION
+# Name: stroke-prediction-pipeline
+# Description: Using Kubeflow pipeline to train and evaluate a Stroke prediction model
+# Outputs:
+#    Output: str
+components:
+  comp-load-data:
+    executorLabel: exec-load-data
+    outputDefinitions:
+      artifacts:
+        data_output:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-prepare-data:
+    executorLabel: exec-prepare-data
+    inputDefinitions:
+      artifacts:
+        data_input:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        X_test_output:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        X_train_output:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        X_val_output:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_test_output:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_train_output:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_val_output:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-train-model:
+    executorLabel: exec-train-model
+    inputDefinitions:
+      artifacts:
+        X_test:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        X_train:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        X_val:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_test:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_train:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_val:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: STRING
+deploymentSpec:
+  executors:
+    exec-load-data:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - load_data
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas==2.2.2'\
+          \ && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef load_data(data_output: Output[Artifact]):\n    import pandas\
+          \ as pd\n\n    # \u8B80\u53D6\u8207\u7A0B\u5F0F\u78BC\u4F4D\u65BC\u540C\u4E00\
+          \u500B\u8CC7\u6599\u593E\u4E2D\u7684 stroke.csv\n    df_data_1 = pd.read_csv('stroke.csv')\n\
+          \n    # \u79FB\u9664\u4E0D\u9700\u8981\u7684\u6B04\u4F4D\n    df_data_1\
+          \ = df_data_1.drop(columns=['id', 'ever_married', 'work_type'])\n\n    #\
+          \ \u5B9A\u7FA9\u6620\u5C04\n    gender_map = {'Male': 0, 'Female': 1}\n\
+          \    smoking_status_map = {'Unknown': 0, 'never smoked': 0, 'formerly smoked':\
+          \ 1, 'smokes': 1}\n    Residence_type_map = {'Urban': 1, 'Rural': 0}\n\n\
+          \    # \u88DC\u9F4A\u8CC7\u6599\n    # gender\n    df_data_1 = df_data_1[(df_data_1['gender']\
+          \ != 'N/A') & (~df_data_1['gender'].isna())]\n    df_data_1['gender'] =\
+          \ df_data_1['gender'].map(gender_map)  # map\n\n    # age\n    df_data_1\
+          \ = df_data_1[(df_data_1['age'] != 'N/A') & (~df_data_1['age'].isna())]\n\
+          \n    # hypertension\n    df_data_1 = df_data_1[(df_data_1['hypertension']\
+          \ != 'N/A') & (~df_data_1['hypertension'].isna())]\n\n    # heart_disease\n\
+          \    df_data_1 = df_data_1[(df_data_1['heart_disease'] != 'N/A') & (~df_data_1['heart_disease'].isna())]\n\
+          \n    # Residence_type\n    df_data_1 = df_data_1[(df_data_1['Residence_type']\
+          \ != 'N/A') & (~df_data_1['Residence_type'].isna())]\n    df_data_1['Residence_type']\
+          \ = df_data_1['Residence_type'].map(Residence_type_map)  # map\n\n    #\
+          \ avg_glucose_level\n    df_data_1 = df_data_1[(df_data_1['avg_glucose_level']\
+          \ != 'N/A') & (~df_data_1['avg_glucose_level'].isna())]\n\n    # bmi\n \
+          \   df_data_1 = df_data_1[(df_data_1['bmi'] != 'N/A') & (~df_data_1['bmi'].isna())]\n\
+          \n    # smoking_status\n    df_data_1 = df_data_1[(df_data_1['smoking_status']\
+          \ != 'N/A') & (~df_data_1['smoking_status'].isna())]\n    df_data_1['smoking_status']\
+          \ = df_data_1['smoking_status'].map(smoking_status_map)  # map\n\n    df_data_1\
+          \ = df_data_1.drop(3116)#\u7279\u6B8A\u8655\u7406\n    df_data_1 = df_data_1.sample(frac=1).reset_index(drop=True)\n\
+          \n    df_data_2 = pd.read_csv('stroke_2.csv')\n    df_data_2 = df_data_2.drop(columns=['ever_married',\
+          \ 'work_type'])\n    df_data_2.rename(columns={'sex': 'gender'}, inplace=True)\n\
+          \    #\u5408\u4F75\n    df_data = pd.concat([df_data_1, df_data_2], ignore_index=True)\n\
+          \n    # \u5220\u9664\u6307\u5B9A\u7684\u884C\n    rows_to_delete = [27386,\
+          \ 33816, 40092]\n    df_data = df_data.drop(index=rows_to_delete)\n    df_data.to_csv(data_output.path)\n\
+          \n"
+        image: python:3.9
+    exec-prepare-data:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - prepare_data
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas==2.2.2'\
+          \ 'scikit-learn==1.5.1' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef prepare_data(\n    data_input: Input[Artifact], \n    X_train_output:\
+          \ Output[Artifact], X_test_output: Output[Artifact],\n    Y_train_output:\
+          \ Output[Artifact], Y_test_output: Output[Artifact],\n    X_val_output:\
+          \ Output[Artifact], Y_val_output: Output[Artifact]\n):\n    import pandas\
+          \ as pd\n    from sklearn.model_selection import train_test_split\n\n  \
+          \  df_data = pd.read_csv(data_input.path)\n\n    X = df_data.drop(labels=['stroke'],\
+          \ axis=1)\n    Y = df_data[['stroke']]\n\n    X_train, X_test, Y_train,\
+          \ Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)\n    X_test,\
+          \ X_val, Y_test, Y_val = train_test_split(X_test, Y_test, test_size=0.5,\
+          \ random_state=42)\n    X_train.to_csv(X_train_output.path, index=False)\n\
+          \    X_test.to_csv(X_test_output.path, index=False)\n    Y_train.to_csv(Y_train_output.path,\
+          \ index=False)\n    Y_test.to_csv(Y_test_output.path, index=False)\n   \
+          \ X_val.to_csv(X_val_output.path, index=False)\n    Y_val.to_csv(Y_val_output.path,\
+          \ index=False)\n\n"
+        image: python:3.9
+    exec-train-model:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas==2.2.2'\
+          \ 'scikit-learn==1.5.1' 'joblib==1.4.2' 'xgboost==2.0.3' && \"$0\" \"$@\"\
+          \n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef train_model(\n    X_train: Input[Artifact], \n    Y_train: Input[Artifact],\
+          \ \n    X_test: Input[Artifact], \n    Y_test: Input[Artifact], \n    X_val:\
+          \ Input[Artifact], \n    Y_val: Input[Artifact]\n) -> str:\n    import pandas\
+          \ as pd\n    import xgboost as xgb\n    from sklearn.linear_model import\
+          \ LogisticRegression\n    from sklearn.metrics import accuracy_score\n \
+          \   import joblib\n\n    X_train = pd.read_csv(X_train.path)\n    Y_train\
+          \ = pd.read_csv(Y_train.path)\n    X_test = pd.read_csv(X_test.path)\n \
+          \   Y_test = pd.read_csv(Y_test.path)\n    X_val = pd.read_csv(X_val.path)\n\
+          \    Y_val = pd.read_csv(Y_val.path)\n    # XGBoost\n    print('XGBoost')\n\
+          \    def XGBoost_training():\n        # \u5C07\u8CC7\u6599\u8F49\u63DB\u70BA\
+          \ DMatrix \u683C\u5F0F\n        dtrain = xgb.DMatrix(X_train, label=Y_train)\n\
+          \        dval = xgb.DMatrix(X_val, label=Y_val)\n        dtest = xgb.DMatrix(X_test,\
+          \ label=Y_test)\n\n        # \u8A08\u7B97\u6B63\u6A23\u672C\u548C\u8CA0\u6A23\
+          \u672C\u7684\u6BD4\u4F8B\n        scale_pos_weight = len(Y_train[Y_train\
+          \ == 0]) / len(Y_train[Y_train == 1])#\u8CA0\u9664\u4EE5\u6B63\n       \
+          \ # \u8A2D\u5B9A\u53C3\u6578\n        param = {\n            'max_depth':\
+          \ 3,  # \u6A39\u7684\u6700\u5927\u6DF1\u5EA6\n            'eta': 0.3,  \
+          \    # \u5B78\u7FD2\u7387\n            'objective': 'binary:logistic', \
+          \ # \u76EE\u6A19\u51FD\u6578\uFF08\u4E8C\u5206\u985E\u554F\u984C\uFF09\n\
+          \            'eval_metric': 'logloss',  # \u8A55\u4F30\u6307\u6A19\n   \
+          \         'scale_pos_weight': scale_pos_weight  # \u52A0\u6B0A\u53C3\u6578\
+          \n        }\n        # \u8A13\u7DF4\u6A21\u578B\n        evallist = [(dtrain,\
+          \ 'train'), (dval, 'eval')]\n        num_round = 1000  \n        Model \
+          \ = xgb.train(param, dtrain, num_round, evallist, early_stopping_rounds=10)#10\u6B21\
+          \u4E0D\u8B8A\u5373\u505C\u6B62\n        preds = Model .predict(dtest)\n\
+          \        predictions = [round(value) for value in preds]\n        global\
+          \ xgb_accuracy \n        xgb_accuracy = accuracy_score(Y_test, predictions)\n\
+          \        print('XGBoost Test accuracy:', xgb_accuracy)\n        return Model\n\
+          \n    xgb_model = XGBoost_training()\n    # Save the model\n    # joblib.dump(xgb_model,\
+          \ model_output.path)\n    return f'XGBoost accuracy: {xgb_accuracy}'\n\n"
+        image: python:3.9
+pipelineInfo:
+  description: Using Kubeflow pipeline to train and evaluate a Stroke prediction model
+  name: stroke-prediction-pipeline
+root:
+  dag:
+    outputs:
+      parameters:
+        Output:
+          valueFromParameter:
+            outputParameterKey: Output
+            producerSubtask: train-model
+    tasks:
+      load-data:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-load-data
+        taskInfo:
+          name: load-data
+      prepare-data:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-prepare-data
+        dependentTasks:
+        - load-data
+        inputs:
+          artifacts:
+            data_input:
+              taskOutputArtifact:
+                outputArtifactKey: data_output
+                producerTask: load-data
+        taskInfo:
+          name: prepare-data
+      train-model:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-train-model
+        dependentTasks:
+        - prepare-data
+        inputs:
+          artifacts:
+            X_test:
+              taskOutputArtifact:
+                outputArtifactKey: X_test_output
+                producerTask: prepare-data
+            X_train:
+              taskOutputArtifact:
+                outputArtifactKey: X_train_output
+                producerTask: prepare-data
+            X_val:
+              taskOutputArtifact:
+                outputArtifactKey: X_val_output
+                producerTask: prepare-data
+            Y_test:
+              taskOutputArtifact:
+                outputArtifactKey: Y_test_output
+                producerTask: prepare-data
+            Y_train:
+              taskOutputArtifact:
+                outputArtifactKey: Y_train_output
+                producerTask: prepare-data
+            Y_val:
+              taskOutputArtifact:
+                outputArtifactKey: Y_val_output
+                producerTask: prepare-data
+        taskInfo:
+          name: train-model
+  outputDefinitions:
+    parameters:
+      Output:
+        parameterType: STRING
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.8.0
