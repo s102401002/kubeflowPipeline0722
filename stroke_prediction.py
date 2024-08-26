@@ -19,7 +19,7 @@ def load_data(data_output: Output[Artifact]):
     import pandas as pd
 
     # 讀取與程式碼位於同一個資料夾中的 stroke.csv
-    df_data_1 = pd.read_csv('stroke.csv')
+    df_data_1 = pd.read_csv('https://raw.githubusercontent.com/s102401002/kubeflowPipeline0722/main/stroke.csv')
 
     # 移除不需要的欄位
     df_data_1 = df_data_1.drop(columns=['id', 'ever_married', 'work_type'])
@@ -60,7 +60,7 @@ def load_data(data_output: Output[Artifact]):
     df_data_1 = df_data_1.drop(3116)#特殊處理
     df_data_1 = df_data_1.sample(frac=1).reset_index(drop=True)
 
-    df_data_2 = pd.read_csv('stroke_2.csv')
+    df_data_2 = pd.read_csv('https://raw.githubusercontent.com/s102401002/kubeflowPipeline0722/main/stroke_2.csv')
     df_data_2 = df_data_2.drop(columns=['ever_married', 'work_type'])
     df_data_2.rename(columns={'sex': 'gender'}, inplace=True)
     #合併

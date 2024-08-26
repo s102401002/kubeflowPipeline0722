@@ -109,7 +109,7 @@ deploymentSpec:
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
           \ *\n\ndef load_data(data_output: Output[Artifact]):\n    import pandas\
           \ as pd\n\n    # \u8B80\u53D6\u8207\u7A0B\u5F0F\u78BC\u4F4D\u65BC\u540C\u4E00\
-          \u500B\u8CC7\u6599\u593E\u4E2D\u7684 stroke.csv\n    df_data_1 = pd.read_csv('stroke.csv')\n\
+          \u500B\u8CC7\u6599\u593E\u4E2D\u7684 stroke.csv\n    df_data_1 = pd.read_csv('https://raw.githubusercontent.com/s102401002/kubeflowPipeline0722/main/stroke.csv')\n\
           \n    # \u79FB\u9664\u4E0D\u9700\u8981\u7684\u6B04\u4F4D\n    df_data_1\
           \ = df_data_1.drop(columns=['id', 'ever_married', 'work_type'])\n\n    #\
           \ \u5B9A\u7FA9\u6620\u5C04\n    gender_map = {'Male': 0, 'Female': 1}\n\
@@ -132,9 +132,10 @@ deploymentSpec:
           \ != 'N/A') & (~df_data_1['smoking_status'].isna())]\n    df_data_1['smoking_status']\
           \ = df_data_1['smoking_status'].map(smoking_status_map)  # map\n\n    df_data_1\
           \ = df_data_1.drop(3116)#\u7279\u6B8A\u8655\u7406\n    df_data_1 = df_data_1.sample(frac=1).reset_index(drop=True)\n\
-          \n    df_data_2 = pd.read_csv('stroke_2.csv')\n    df_data_2 = df_data_2.drop(columns=['ever_married',\
-          \ 'work_type'])\n    df_data_2.rename(columns={'sex': 'gender'}, inplace=True)\n\
-          \    #\u5408\u4F75\n    df_data = pd.concat([df_data_1, df_data_2], ignore_index=True)\n\
+          \n    df_data_2 = pd.read_csv('https://raw.githubusercontent.com/s102401002/kubeflowPipeline0722/main/stroke_2.csv')\n\
+          \    df_data_2 = df_data_2.drop(columns=['ever_married', 'work_type'])\n\
+          \    df_data_2.rename(columns={'sex': 'gender'}, inplace=True)\n    #\u5408\
+          \u4F75\n    df_data = pd.concat([df_data_1, df_data_2], ignore_index=True)\n\
           \n    # \u5220\u9664\u6307\u5B9A\u7684\u884C\n    rows_to_delete = [27386,\
           \ 33816, 40092]\n    df_data = df_data.drop(index=rows_to_delete)\n    df_data.to_csv(data_output.path)\n\
           \n"
