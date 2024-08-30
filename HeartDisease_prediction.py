@@ -108,26 +108,22 @@ def prepare_data(
 
 @dsl.component(
     base_image='python:3.9',
-    packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2', 'xgboost==2.0.3']
+    packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2']
 )
-def train_model(
+def train_model_LogisticRegression(
     X_train: Input[Artifact], 
     Y_train: Input[Artifact], 
-    X_test: Input[Artifact], 
-    Y_test: Input[Artifact], 
     X_val: Input[Artifact], 
-    Y_val: Input[Artifact]
-) -> str:
+    Y_val: Input[Artifact],
+    train_model_output: Output[Artifact]
+):
     import pandas as pd
-    import xgboost as xgb
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import accuracy_score
     import joblib
     
     X_train = pd.read_csv(X_train.path)
     Y_train = pd.read_csv(Y_train.path)
-    X_test = pd.read_csv(X_test.path)
-    Y_test = pd.read_csv(Y_test.path)
     X_val = pd.read_csv(X_val.path)
     Y_val = pd.read_csv(Y_val.path)
     
@@ -136,41 +132,99 @@ def train_model(
     model = LogisticRegression(random_state=0, max_iter=10000)
     model.fit(X_train, Y_train)
     print('Training accuracy:', model.score(X_train, Y_train))
-    lr_accuracy = model.score(X_test, Y_test)
-    print('Test accuracy:', lr_accuracy)
-    
-    # XGBoost
-    print('XGBoost')
-    def xgboost_training():
-        dtrain = xgb.DMatrix(X_train, label=Y_train)
-        dval = xgb.DMatrix(X_val, label=Y_val)
-        dtest = xgb.DMatrix(X_test, label=Y_test)
-
-        scale_pos_weight = len(Y_train[Y_train == 0]) / len(Y_train[Y_train == 1])
-        param = {
-            'max_depth': 3,
-            'eta': 0.3,
-            'objective': 'binary:logistic',
-            'eval_metric': 'logloss',
-            'scale_pos_weight': scale_pos_weight
-        }
-        evallist = [(dtrain, 'train'), (dval, 'eval')]
-        num_round = 1000
-        model = xgb.train(param, dtrain, num_round, evallist, early_stopping_rounds=10)
-        preds = model.predict(dtest)
-        predictions = [round(value) for value in preds]
-        global xgb_accuracy 
-        xgb_accuracy = accuracy_score(Y_test, predictions)
-        print('XGBoost Test accuracy:', xgb_accuracy)
-        
-        return model
-    
-    xgb_model = xgboost_training()
+    # lr_accuracy = model.score(X_test, Y_test)
+    # print('Test accuracy:', lr_accuracy)
     
     # Save the model
-    # joblib.dump(xgb_model, model_output.path)
-    return f'Logistic Regression accuracy: {lr_accuracy}, XGBoost accuracy: {xgb_accuracy}'
+    joblib.dump(model, train_model_output.path)
+@dsl.component(
+    base_image='python:3.9',
+    packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2', 'xgboost==2.0.3']
+)
+def train_model_xgboost(
+    X_train: Input[Artifact], 
+    Y_train: Input[Artifact],
+    X_val: Input[Artifact], 
+    Y_val: Input[Artifact],
+    train_model_output: Output[Artifact]
+):
+    import pandas as pd
+    import xgboost as xgb
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import accuracy_score
+    import joblib
+    
+    X_train = pd.read_csv(X_train.path)
+    Y_train = pd.read_csv(Y_train.path)
+    X_val = pd.read_csv(X_val.path)
+    Y_val = pd.read_csv(Y_val.path)
+    
+    dtrain = xgb.DMatrix(X_train, label=Y_train)
+    dval = xgb.DMatrix(X_val, label=Y_val)
+    # dtest = xgb.DMatrix(X_test, label=Y_test)
 
+    scale_pos_weight = len(Y_train[Y_train == 0]) / len(Y_train[Y_train == 1])
+    param = {
+        'max_depth': 3,
+        'eta': 0.3,
+        'objective': 'binary:logistic',
+        'eval_metric': 'logloss',
+        'scale_pos_weight': scale_pos_weight
+    }
+    evallist = [(dtrain, 'train'), (dval, 'eval')]
+    num_round = 1000
+    model = xgb.train(param, dtrain, num_round, evallist, early_stopping_rounds=10)
+    # preds = model.predict(dtest)
+    # predictions = [round(value) for value in preds]
+    # global xgb_accuracy 
+    # xgb_accuracy = accuracy_score(Y_test, predictions)
+    # print('XGBoost Test accuracy:', xgb_accuracy)
+    
+    # Save the model
+    joblib.dump(model, train_model_output.path)
+    # return f'XGBoost accuracy: {xgb_accuracy}'
+
+@dsl.component(
+    base_image='python:3.9',
+    packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2', 'xgboost==2.0.3']
+)
+def choose_model(
+    X_test: Input[Artifact], 
+    Y_test: Input[Artifact], 
+    X_val: Input[Artifact], 
+    Y_val: Input[Artifact],
+    LogisticRegression_model: Input[Artifact],
+    XGBoost_model: Input[Artifact]
+    # ,final_model: Output[Artifact]
+) -> str:
+    from pyspark.sql import SparkSession
+    from pyspark.ml.classification import RandomForestClassificationModel
+    from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+    import joblib
+    import pandas as pd
+    import xgboost as xgb
+    from sklearn.metrics import accuracy_score
+    from sklearn.linear_model import LogisticRegression
+
+    X_test = pd.read_csv(X_test.path)
+    Y_test = pd.read_csv(Y_test.path)
+
+    # LogisticRegression_model accuracy
+    lr_accuracy = LogisticRegression_model.score(X_test, Y_test)
+
+    #XGB accuracy
+    dtest = xgb.DMatrix(X_test, label=Y_test)
+    preds = XGBoost_model.predict(dtest)
+    predictions = [round(value) for value in preds]
+    global xgb_accuracy 
+    xgb_accuracy = accuracy_score(Y_test, predictions)
+    # if xgb_accuracy > lr_accuracy:
+    #     joblib.dump(XGBoost_model, final_model.path)
+    # else:
+    #     joblib.dump(LogisticRegression_model, final_model.path)
+    print(f'Logistic Regression accuracy: {lr_accuracy}, XGBoost accuracy: {xgb_accuracy}')
+    return f'Logistic Regression accuracy: {lr_accuracy}, XGBoost accuracy: {xgb_accuracy}'
+    
 @dsl.pipeline(
     name='HeartDisease Prediction Pipeline',
     description='Using Kubeflow pipeline to train and evaluate a HeartDisease prediction model'
@@ -183,18 +237,30 @@ def HeartDisease_prediction_pipeline() -> str:
     prepare_data_task = prepare_data(data_input=load_data_task.outputs['data_output'])
     
     # 訓練模型
-    train_model_task = train_model(
+    train_model_LogisticRegression_task = train_model_LogisticRegression(
         X_train=prepare_data_task.outputs['X_train_output'], 
         Y_train=prepare_data_task.outputs['Y_train_output'],
+        X_val=prepare_data_task.outputs['X_val_output'],
+        Y_val=prepare_data_task.outputs['Y_val_output']
+    )
+
+    train_model_xgboost_task = train_model_xgboost(
+        X_train=prepare_data_task.outputs['X_train_output'], 
+        Y_train=prepare_data_task.outputs['Y_train_output'],
+        X_val=prepare_data_task.outputs['X_val_output'],
+        Y_val=prepare_data_task.outputs['Y_val_output']
+    )
+    
+    choose_model_task = choose_model(
         X_test=prepare_data_task.outputs['X_test_output'], 
         Y_test=prepare_data_task.outputs['Y_test_output'],
         X_val=prepare_data_task.outputs['X_val_output'],
         Y_val=prepare_data_task.outputs['Y_val_output'],
-        # model_output=prepare_data_task.outputs['model_output']  # 確保從 prepare_data 中正確引用輸出
+        LogisticRegression_model=train_model_LogisticRegression_task.outputs['train_model_output'],
+        XGBoost_model=train_model_xgboost_task.outputs['train_model_output']
     )
-    
     # 返回模型的準確度
-    return train_model_task.output  # 返回 train_model 任務的輸出
+    return choose_model_task.output
 
 if __name__ == '__main__':
     kfp.compiler.Compiler().compile(HeartDisease_prediction_pipeline, 'HeartDisease_prediction_pipeline.yaml')
