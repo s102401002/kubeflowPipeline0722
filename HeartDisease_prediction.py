@@ -291,7 +291,7 @@ def train_model_RandomForest(
 
 @dsl.component(
     base_image='python:3.9',
-    packages_to_install=['joblib==1.4.2', 'scikit-learn==1.5.1']
+    packages_to_install=['joblib==1.4.2', 'scikit-learn==1.5.1', 'xgboost==2.0.3']
 )
 def choose_model(
     LogisticRegression_model: Input[Artifact],
@@ -307,33 +307,33 @@ def choose_model(
 ) -> None:
     import joblib
     import json
-    # Read accuracies
-    
-    lr_jsonFile = open(lr_file.path,'r')
-    f = lr_jsonFile.read()
-    lr = json.loads(f)
 
-    xgb_jsonFile = open(xgb_file.path,'r')
-    f = xgb_jsonFile.read()
-    xgb = json.loads(f)
+    # Define a dictionary to store model artifacts and their corresponding JSON files
+    models = {
+        'LogisticRegression': lr_file,
+        'XGBoost': xgb_file,
+        'RandomForest': rf_file
+    }
 
-    rf_jsonFile = open(rf_file.path,'r')
-    f = rf_jsonFile.read()
-    rf = json.loads(f)
+    accuracy = {}
+    model_paths = {}
+
+    # Read accuracies and model paths
+    for model_name, json_file in models.items():
+        with open(json_file.path, 'r') as f:
+            data = json.load(f)
+        accuracy[model_name] = data['accuracy']
+        model_paths[model_name] = data['model_path']
+
+    # Find the best model
+    best_model_name = max(accuracy, key=accuracy.get)
+    best_model = joblib.load(model_paths[best_model_name])
     
-    accuracy = {'LogisticRegression': lr['accuracy'], 
-                'XGBoost': xgb['accuracy'],
-                'RandomForest': rf['accuracy']
-                }
-    model = {'LogisticRegression': lr['model_path'], 
-            'XGBoost': xgb['model_path'],
-            'RandomForest': rf['model_path']
-            }
-    sorted(accuracy.items(), key=lambda x:x[1])
-    # best_model = joblib.load(model[list(accuracy.keys())[0]]) # get the name of best model
-    best_model = joblib.load(model["LogisticRegression"]) # get the name of best model
+    # Save the best model
     joblib.dump(best_model, final_model.path)
-    result_string = f'Best Model is {model[list(accuracy.keys())[0]]} : {accuracy[model[list(accuracy.keys())[0]]]}'
+
+    # Prepare result string
+    result_string = f'Best Model is {best_model_name} : {accuracy[best_model_name]}'
     print(result_string)
 
     # Write the result to a file

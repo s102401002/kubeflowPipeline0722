@@ -213,7 +213,7 @@ deploymentSpec:
           \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
           \  python3 -m pip install --quiet --no-warn-script-location 'joblib==1.4.2'\
-          \ 'scikit-learn==1.5.1' && \"$0\" \"$@\"\n"
+          \ 'scikit-learn==1.5.1' 'xgboost==2.0.3' && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -230,23 +230,21 @@ deploymentSpec:
           \    RandomForest_model: Input[Artifact],\n    lr_file: Input[Artifact],\n\
           \    xgb_file: Input[Artifact],\n    # svm_accuracy: Input[Artifact],\n\
           \    rf_file: Input[Artifact],\n    final_model: Output[Model],\n    result:\
-          \ Output[Artifact]\n) -> None:\n    import joblib\n    import json\n   \
-          \ # Read accuracies\n\n    lr_jsonFile = open(lr_file.path,'r')\n    f =\
-          \ lr_jsonFile.read()\n    lr = json.loads(f)\n\n    xgb_jsonFile = open(xgb_file.path,'r')\n\
-          \    f = xgb_jsonFile.read()\n    xgb = json.loads(f)\n\n    rf_jsonFile\
-          \ = open(rf_file.path,'r')\n    f = rf_jsonFile.read()\n    rf = json.loads(f)\n\
-          \n    accuracy = {'LogisticRegression': lr['accuracy'], \n             \
-          \   'XGBoost': xgb['accuracy'],\n                'RandomForest': rf['accuracy']\n\
-          \                }\n    model = {'LogisticRegression': lr['model_path'],\
-          \ \n            'XGBoost': xgb['model_path'],\n            'RandomForest':\
-          \ rf['model_path']\n            }\n    sorted(accuracy.items(), key=lambda\
-          \ x:x[1])\n    # best_model = joblib.load(model[list(accuracy.keys())[0]])\
-          \ # get the name of best model\n    best_model = joblib.load(model[\"LogisticRegression\"\
-          ]) # get the name of best model\n    joblib.dump(best_model, final_model.path)\n\
-          \    result_string = f'Best Model is {model[list(accuracy.keys())[0]]} :\
-          \ {accuracy[model[list(accuracy.keys())[0]]]}'\n    print(result_string)\n\
-          \n    # Write the result to a file\n    with open(result.path, 'w') as f:\n\
-          \        f.write(result_string)\n\n"
+          \ Output[Artifact]\n) -> None:\n    import joblib\n    import json\n\n \
+          \   # Define a dictionary to store model artifacts and their corresponding\
+          \ JSON files\n    models = {\n        'LogisticRegression': lr_file,\n \
+          \       'XGBoost': xgb_file,\n        'RandomForest': rf_file\n    }\n\n\
+          \    accuracy = {}\n    model_paths = {}\n\n    # Read accuracies and model\
+          \ paths\n    for model_name, json_file in models.items():\n        with\
+          \ open(json_file.path, 'r') as f:\n            data = json.load(f)\n   \
+          \     accuracy[model_name] = data['accuracy']\n        model_paths[model_name]\
+          \ = data['model_path']\n\n    # Find the best model\n    best_model_name\
+          \ = max(accuracy, key=accuracy.get)\n    best_model = joblib.load(model_paths[best_model_name])\n\
+          \n    # Save the best model\n    joblib.dump(best_model, final_model.path)\n\
+          \n    # Prepare result string\n    result_string = f'Best Model is {best_model_name}\
+          \ : {accuracy[best_model_name]}'\n    print(result_string)\n\n    # Write\
+          \ the result to a file\n    with open(result.path, 'w') as f:\n        f.write(result_string)\n\
+          \n"
         image: python:3.9
     exec-load-data:
       container:
