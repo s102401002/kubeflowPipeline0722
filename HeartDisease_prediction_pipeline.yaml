@@ -1,8 +1,6 @@
 # PIPELINE DEFINITION
 # Name: heartdisease-prediction-pipeline
 # Description: Using Kubeflow pipeline to train and evaluate a HeartDisease prediction model
-# Outputs:
-#    Output: str
 components:
   comp-choose-model:
     executorLabel: exec-choose-model
@@ -12,30 +10,36 @@ components:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
+        RandomForest_model:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
         XGBoost_model:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
-        X_test:
+        lr_accuracy:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
-        X_val:
+        rf_accuracy:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
-        Y_test:
-          artifactType:
-            schemaTitle: system.Artifact
-            schemaVersion: 0.0.1
-        Y_val:
+        xgb_accuracy:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
     outputDefinitions:
-      parameters:
-        Output:
-          parameterType: STRING
+      artifacts:
+        final_model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+        result:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
   comp-load-data:
     executorLabel: exec-load-data
     outputDefinitions:
@@ -82,11 +86,19 @@ components:
     executorLabel: exec-train-model-logisticregression
     inputDefinitions:
       artifacts:
+        X_test:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
         X_train:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
         X_val:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_test:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
@@ -100,7 +112,49 @@ components:
             schemaVersion: 0.0.1
     outputDefinitions:
       artifacts:
-        train_model_output:
+        accuracy:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        model:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-train-model-randomforest:
+    executorLabel: exec-train-model-randomforest
+    inputDefinitions:
+      artifacts:
+        X_test:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        X_train:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        X_val:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_test:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_train:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_val:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        accuracy:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        model:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
@@ -108,11 +162,19 @@ components:
     executorLabel: exec-train-model-xgboost
     inputDefinitions:
       artifacts:
+        X_test:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
         X_train:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
         X_val:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_test:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
@@ -126,7 +188,11 @@ components:
             schemaVersion: 0.0.1
     outputDefinitions:
       artifacts:
-        train_model_output:
+        accuracy:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        model:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
@@ -160,25 +226,26 @@ deploymentSpec:
 
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
-          \ *\n\ndef choose_model(\n    X_test: Input[Artifact], \n    Y_test: Input[Artifact],\
-          \ \n    X_val: Input[Artifact], \n    Y_val: Input[Artifact],\n    LogisticRegression_model:\
-          \ Input[Artifact],\n    XGBoost_model: Input[Artifact]\n    # ,final_model:\
-          \ Output[Artifact]\n) -> str:\n    from pyspark.sql import SparkSession\n\
-          \    from pyspark.ml.classification import RandomForestClassificationModel\n\
-          \    from pyspark.ml.evaluation import MulticlassClassificationEvaluator\n\
-          \    import joblib\n    import pandas as pd\n    import xgboost as xgb\n\
-          \    from sklearn.metrics import accuracy_score\n    from sklearn.linear_model\
-          \ import LogisticRegression\n\n    X_test = pd.read_csv(X_test.path)\n \
-          \   Y_test = pd.read_csv(Y_test.path)\n\n    # LogisticRegression_model\
-          \ accuracy\n    lr_accuracy = LogisticRegression_model.score(X_test, Y_test)\n\
-          \n    #XGB accuracy\n    dtest = xgb.DMatrix(X_test, label=Y_test)\n   \
-          \ preds = XGBoost_model.predict(dtest)\n    predictions = [round(value)\
-          \ for value in preds]\n    global xgb_accuracy \n    xgb_accuracy = accuracy_score(Y_test,\
-          \ predictions)\n    # if xgb_accuracy > lr_accuracy:\n    #     joblib.dump(XGBoost_model,\
-          \ final_model.path)\n    # else:\n    #     joblib.dump(LogisticRegression_model,\
-          \ final_model.path)\n    print(f'Logistic Regression accuracy: {lr_accuracy},\
-          \ XGBoost accuracy: {xgb_accuracy}')\n    return f'Logistic Regression accuracy:\
-          \ {lr_accuracy}, XGBoost accuracy: {xgb_accuracy}'\n\n"
+          \ *\n\ndef choose_model(\n    LogisticRegression_model: Input[Artifact],\n\
+          \    XGBoost_model: Input[Artifact],\n    # SVM_model: Input[Artifact],\n\
+          \    RandomForest_model: Input[Artifact],\n    lr_accuracy: Input[Artifact],\n\
+          \    xgb_accuracy: Input[Artifact],\n    # svm_accuracy: Input[Artifact],\n\
+          \    rf_accuracy: Input[Artifact],\n    final_model: Output[Model],\n  \
+          \  result: Output[Artifact]\n) -> None:\n    import joblib\n\n    # Read\
+          \ accuracies\n    with open(lr_accuracy.path, 'r') as f:\n        lr_acc\
+          \ = float(f.read().strip())\n    with open(xgb_accuracy.path, 'r') as f:\n\
+          \        xgb_acc = float(f.read().strip())\n    # with open(svm_accuracy.path,\
+          \ 'r') as f:\n    #     svm_acc = float(f.read().strip())\n    with open(rf_accuracy.path,\
+          \ 'r') as f:\n        rf_acc = float(f.read().strip())\n    # Choose the\
+          \ best model\n    if xgb_acc > lr_acc:\n        best_model = joblib.load(XGBoost_model.path)\n\
+          \        joblib.dump(best_model, final_model.path)\n        best_model_name\
+          \ = \"XGBoost\"\n    else:\n        best_model = joblib.load(LogisticRegression_model.path)\n\
+          \        joblib.dump(best_model, final_model.path)\n        best_model_name\
+          \ = \"Logistic Regression\"\n\n    result_string = f'Logistic Regression\
+          \ accuracy: {lr_acc}, XGBoost accuracy: {xgb_acc}, RandomForest accuracy:\
+          \ {rf_acc}. Best model: {best_model_name}'\n    print(result_string)\n\n\
+          \    # Write the result to a file\n    with open(result.path, 'w') as f:\n\
+          \        f.write(result_string)\n\n"
         image: python:3.9
     exec-load-data:
       container:
@@ -318,17 +385,62 @@ deploymentSpec:
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
           \ *\n\ndef train_model_LogisticRegression(\n    X_train: Input[Artifact],\
           \ \n    Y_train: Input[Artifact], \n    X_val: Input[Artifact], \n    Y_val:\
-          \ Input[Artifact],\n    train_model_output: Output[Artifact]\n):\n    import\
-          \ pandas as pd\n    from sklearn.linear_model import LogisticRegression\n\
-          \    from sklearn.metrics import accuracy_score\n    import joblib\n\n \
-          \   X_train = pd.read_csv(X_train.path)\n    Y_train = pd.read_csv(Y_train.path)\n\
+          \ Input[Artifact],\n    X_test: Input[Artifact], \n    Y_test: Input[Artifact],\
+          \ \n    model: Output[Artifact],\n    accuracy: Output[Artifact]\n):\n \
+          \   import pandas as pd\n    from sklearn.linear_model import LogisticRegression\n\
+          \    from sklearn.metrics import accuracy_score\n    import joblib\n   \
+          \ import json\n\n    X_train = pd.read_csv(X_train.path)\n    Y_train =\
+          \ pd.read_csv(Y_train.path)\n    X_val = pd.read_csv(X_val.path)\n    Y_val\
+          \ = pd.read_csv(Y_val.path)\n    X_test = pd.read_csv(X_test.path)\n   \
+          \ Y_test = pd.read_csv(Y_test.path)\n\n    # Logistic Regression\n    print('Logistic\
+          \ Regression')\n    lr_model = LogisticRegression(random_state=0, max_iter=10000)\n\
+          \    lr_model.fit(X_train, Y_train.values.ravel())\n    print('Training\
+          \ accuracy:', lr_model.score(X_train, Y_train))\n    lr_accuracy = lr_model.score(X_test,\
+          \ Y_test)\n    print('Test accuracy:', lr_accuracy)\n\n    # Save the model\n\
+          \    joblib.dump(lr_model, model.path)\n    # Save the accuracy\n    with\
+          \ open(accuracy.path, 'w') as f:\n        f.write(str(lr_accuracy))\n\n"
+        image: python:3.9
+    exec-train-model-randomforest:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_model_RandomForest
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas==2.2.2'\
+          \ 'scikit-learn==1.5.1' 'joblib==1.4.2' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef train_model_RandomForest(\n    X_train: Input[Artifact], \n \
+          \   Y_train: Input[Artifact],\n    X_val: Input[Artifact], \n    Y_val:\
+          \ Input[Artifact],\n    X_test: Input[Artifact], \n    Y_test: Input[Artifact],\
+          \ \n    model: Output[Artifact],\n    accuracy: Output[Artifact]\n):\n \
+          \   import pandas as pd\n    from sklearn.metrics import accuracy_score\n\
+          \    from sklearn.ensemble import RandomForestClassifier\n    import joblib\n\
+          \n    X_train = pd.read_csv(X_train.path)\n    Y_train = pd.read_csv(Y_train.path)\n\
           \    X_val = pd.read_csv(X_val.path)\n    Y_val = pd.read_csv(Y_val.path)\n\
-          \n    # Logistic Regression\n    print('Logistic Regression')\n    model\
-          \ = LogisticRegression(random_state=0, max_iter=10000)\n    model.fit(X_train,\
-          \ Y_train)\n    print('Training accuracy:', model.score(X_train, Y_train))\n\
-          \    # lr_accuracy = model.score(X_test, Y_test)\n    # print('Test accuracy:',\
-          \ lr_accuracy)\n\n    # Save the model\n    joblib.dump(model, train_model_output.path)\n\
-          \n"
+          \    X_test = pd.read_csv(X_test.path)\n    Y_test = pd.read_csv(Y_test.path)\n\
+          \n    rfc=RandomForestClassifier(n_estimators=5)\n    rfc.fit(X_train,Y_train.values.ravel())\
+          \    \n    y_predict=rfc.predict(X_test)\n    rfc.predict(X_test)\n    rf_accuracy\
+          \ = rfc.score(X_test,Y_test)\n    # Save the model\n    joblib.dump(rfc,\
+          \ model.path)\n\n     # Save the accuracy\n    with open(accuracy.path,\
+          \ 'w') as f:\n        f.write(str(rf_accuracy))\n\n"
         image: python:3.9
     exec-train-model-xgboost:
       container:
@@ -360,24 +472,27 @@ deploymentSpec:
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
           \ *\n\ndef train_model_xgboost(\n    X_train: Input[Artifact], \n    Y_train:\
           \ Input[Artifact],\n    X_val: Input[Artifact], \n    Y_val: Input[Artifact],\n\
-          \    train_model_output: Output[Artifact]\n):\n    import pandas as pd\n\
-          \    import xgboost as xgb\n    from sklearn.linear_model import LogisticRegression\n\
-          \    from sklearn.metrics import accuracy_score\n    import joblib\n\n \
-          \   X_train = pd.read_csv(X_train.path)\n    Y_train = pd.read_csv(Y_train.path)\n\
-          \    X_val = pd.read_csv(X_val.path)\n    Y_val = pd.read_csv(Y_val.path)\n\
-          \n    dtrain = xgb.DMatrix(X_train, label=Y_train)\n    dval = xgb.DMatrix(X_val,\
-          \ label=Y_val)\n    # dtest = xgb.DMatrix(X_test, label=Y_test)\n\n    scale_pos_weight\
-          \ = len(Y_train[Y_train == 0]) / len(Y_train[Y_train == 1])\n    param =\
-          \ {\n        'max_depth': 3,\n        'eta': 0.3,\n        'objective':\
-          \ 'binary:logistic',\n        'eval_metric': 'logloss',\n        'scale_pos_weight':\
-          \ scale_pos_weight\n    }\n    evallist = [(dtrain, 'train'), (dval, 'eval')]\n\
-          \    num_round = 1000\n    model = xgb.train(param, dtrain, num_round, evallist,\
-          \ early_stopping_rounds=10)\n    # preds = model.predict(dtest)\n    # predictions\
-          \ = [round(value) for value in preds]\n    # global xgb_accuracy \n    #\
-          \ xgb_accuracy = accuracy_score(Y_test, predictions)\n    # print('XGBoost\
-          \ Test accuracy:', xgb_accuracy)\n\n    # Save the model\n    joblib.dump(model,\
-          \ train_model_output.path)\n    # return f'XGBoost accuracy: {xgb_accuracy}'\n\
-          \n"
+          \    X_test: Input[Artifact], \n    Y_test: Input[Artifact], \n    model:\
+          \ Output[Artifact],\n    accuracy: Output[Artifact]\n):\n    import pandas\
+          \ as pd\n    import xgboost as xgb\n    from sklearn.linear_model import\
+          \ LogisticRegression\n    from sklearn.metrics import accuracy_score\n \
+          \   import joblib\n\n    X_train = pd.read_csv(X_train.path)\n    Y_train\
+          \ = pd.read_csv(Y_train.path)\n    X_val = pd.read_csv(X_val.path)\n   \
+          \ Y_val = pd.read_csv(Y_val.path)\n    X_test = pd.read_csv(X_test.path)\n\
+          \    Y_test = pd.read_csv(Y_test.path)\n\n    dtrain = xgb.DMatrix(X_train,\
+          \ label=Y_train)\n    dval = xgb.DMatrix(X_val, label=Y_val)\n    dtest\
+          \ = xgb.DMatrix(X_test, label=Y_test)\n\n    scale_pos_weight = len(Y_train[Y_train\
+          \ == 0]) / len(Y_train[Y_train == 1])\n    param = {\n        'max_depth':\
+          \ 3,\n        'eta': 0.3,\n        'objective': 'binary:logistic',\n   \
+          \     'eval_metric': 'logloss',\n        'scale_pos_weight': scale_pos_weight\n\
+          \    }\n    evallist = [(dtrain, 'train'), (dval, 'eval')]\n    num_round\
+          \ = 1000\n    xgb_model = xgb.train(param, dtrain, num_round, evallist,\
+          \ early_stopping_rounds=10)\n    preds = xgb_model.predict(dtest)\n    predictions\
+          \ = [round(value) for value in preds]\n    global xgb_accuracy \n    xgb_accuracy\
+          \ = accuracy_score(Y_test, predictions)\n    print('XGBoost Test accuracy:',\
+          \ xgb_accuracy)\n\n    # Save the model\n    joblib.dump(xgb_model, model.path)\n\
+          \n     # Save the accuracy\n    with open(accuracy.path, 'w') as f:\n  \
+          \      f.write(str(xgb_accuracy))\n\n"
         image: python:3.9
 pipelineInfo:
   description: Using Kubeflow pipeline to train and evaluate a HeartDisease prediction
@@ -385,12 +500,6 @@ pipelineInfo:
   name: heartdisease-prediction-pipeline
 root:
   dag:
-    outputs:
-      parameters:
-        Output:
-          valueFromParameter:
-            outputParameterKey: Output
-            producerSubtask: choose-model
     tasks:
       choose-model:
         cachingOptions:
@@ -398,35 +507,35 @@ root:
         componentRef:
           name: comp-choose-model
         dependentTasks:
-        - prepare-data
         - train-model-logisticregression
+        - train-model-randomforest
         - train-model-xgboost
         inputs:
           artifacts:
             LogisticRegression_model:
               taskOutputArtifact:
-                outputArtifactKey: train_model_output
+                outputArtifactKey: model
                 producerTask: train-model-logisticregression
+            RandomForest_model:
+              taskOutputArtifact:
+                outputArtifactKey: model
+                producerTask: train-model-randomforest
             XGBoost_model:
               taskOutputArtifact:
-                outputArtifactKey: train_model_output
+                outputArtifactKey: model
                 producerTask: train-model-xgboost
-            X_test:
+            lr_accuracy:
               taskOutputArtifact:
-                outputArtifactKey: X_test_output
-                producerTask: prepare-data
-            X_val:
+                outputArtifactKey: accuracy
+                producerTask: train-model-logisticregression
+            rf_accuracy:
               taskOutputArtifact:
-                outputArtifactKey: X_val_output
-                producerTask: prepare-data
-            Y_test:
+                outputArtifactKey: accuracy
+                producerTask: train-model-randomforest
+            xgb_accuracy:
               taskOutputArtifact:
-                outputArtifactKey: Y_test_output
-                producerTask: prepare-data
-            Y_val:
-              taskOutputArtifact:
-                outputArtifactKey: Y_val_output
-                producerTask: prepare-data
+                outputArtifactKey: accuracy
+                producerTask: train-model-xgboost
         taskInfo:
           name: choose-model
       load-data:
@@ -460,6 +569,10 @@ root:
         - prepare-data
         inputs:
           artifacts:
+            X_test:
+              taskOutputArtifact:
+                outputArtifactKey: X_test_output
+                producerTask: prepare-data
             X_train:
               taskOutputArtifact:
                 outputArtifactKey: X_train_output
@@ -467,6 +580,10 @@ root:
             X_val:
               taskOutputArtifact:
                 outputArtifactKey: X_val_output
+                producerTask: prepare-data
+            Y_test:
+              taskOutputArtifact:
+                outputArtifactKey: Y_test_output
                 producerTask: prepare-data
             Y_train:
               taskOutputArtifact:
@@ -478,6 +595,41 @@ root:
                 producerTask: prepare-data
         taskInfo:
           name: train-model-logisticregression
+      train-model-randomforest:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-train-model-randomforest
+        dependentTasks:
+        - prepare-data
+        inputs:
+          artifacts:
+            X_test:
+              taskOutputArtifact:
+                outputArtifactKey: X_test_output
+                producerTask: prepare-data
+            X_train:
+              taskOutputArtifact:
+                outputArtifactKey: X_train_output
+                producerTask: prepare-data
+            X_val:
+              taskOutputArtifact:
+                outputArtifactKey: X_val_output
+                producerTask: prepare-data
+            Y_test:
+              taskOutputArtifact:
+                outputArtifactKey: Y_test_output
+                producerTask: prepare-data
+            Y_train:
+              taskOutputArtifact:
+                outputArtifactKey: Y_train_output
+                producerTask: prepare-data
+            Y_val:
+              taskOutputArtifact:
+                outputArtifactKey: Y_val_output
+                producerTask: prepare-data
+        taskInfo:
+          name: train-model-randomforest
       train-model-xgboost:
         cachingOptions:
           enableCache: true
@@ -487,6 +639,10 @@ root:
         - prepare-data
         inputs:
           artifacts:
+            X_test:
+              taskOutputArtifact:
+                outputArtifactKey: X_test_output
+                producerTask: prepare-data
             X_train:
               taskOutputArtifact:
                 outputArtifactKey: X_train_output
@@ -494,6 +650,10 @@ root:
             X_val:
               taskOutputArtifact:
                 outputArtifactKey: X_val_output
+                producerTask: prepare-data
+            Y_test:
+              taskOutputArtifact:
+                outputArtifactKey: Y_test_output
                 producerTask: prepare-data
             Y_train:
               taskOutputArtifact:
@@ -505,9 +665,5 @@ root:
                 producerTask: prepare-data
         taskInfo:
           name: train-model-xgboost
-  outputDefinitions:
-    parameters:
-      Output:
-        parameterType: STRING
 schemaVersion: 2.1.0
 sdkVersion: kfp-2.8.0
