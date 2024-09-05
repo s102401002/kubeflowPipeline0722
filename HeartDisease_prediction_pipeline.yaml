@@ -18,15 +18,15 @@ components:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
-        lr_accuracy:
+        lr_file:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
-        rf_accuracy:
+        rf_file:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
-        xgb_accuracy:
+        xgb_file:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
@@ -212,9 +212,8 @@ deploymentSpec:
           \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
           \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
           \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
-          \  python3 -m pip install --quiet --no-warn-script-location 'pandas==2.2.2'\
-          \ 'scikit-learn==1.5.1' 'joblib==1.4.2' 'xgboost==2.0.3' && \"$0\" \"$@\"\
-          \n"
+          \  python3 -m pip install --quiet --no-warn-script-location 'joblib==1.4.2'\
+          \ 'scikit-learn==1.5.1' && \"$0\" \"$@\"\n"
         - sh
         - -ec
         - 'program_path=$(mktemp -d)
@@ -228,23 +227,25 @@ deploymentSpec:
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
           \ *\n\ndef choose_model(\n    LogisticRegression_model: Input[Artifact],\n\
           \    XGBoost_model: Input[Artifact],\n    # SVM_model: Input[Artifact],\n\
-          \    RandomForest_model: Input[Artifact],\n    lr_accuracy: Input[Artifact],\n\
-          \    xgb_accuracy: Input[Artifact],\n    # svm_accuracy: Input[Artifact],\n\
-          \    rf_accuracy: Input[Artifact],\n    final_model: Output[Model],\n  \
-          \  result: Output[Artifact]\n) -> None:\n    import joblib\n\n    # Read\
-          \ accuracies\n    with open(lr_accuracy.path, 'r') as f:\n        lr_acc\
-          \ = float(f.read().strip())\n    with open(xgb_accuracy.path, 'r') as f:\n\
-          \        xgb_acc = float(f.read().strip())\n    # with open(svm_accuracy.path,\
-          \ 'r') as f:\n    #     svm_acc = float(f.read().strip())\n    with open(rf_accuracy.path,\
-          \ 'r') as f:\n        rf_acc = float(f.read().strip())\n    # Choose the\
-          \ best model\n    if xgb_acc > lr_acc:\n        best_model = joblib.load(XGBoost_model.path)\n\
-          \        joblib.dump(best_model, final_model.path)\n        best_model_name\
-          \ = \"XGBoost\"\n    else:\n        best_model = joblib.load(LogisticRegression_model.path)\n\
-          \        joblib.dump(best_model, final_model.path)\n        best_model_name\
-          \ = \"Logistic Regression\"\n\n    result_string = f'Logistic Regression\
-          \ accuracy: {lr_acc}, XGBoost accuracy: {xgb_acc}, RandomForest accuracy:\
-          \ {rf_acc}. Best model: {best_model_name}'\n    print(result_string)\n\n\
-          \    # Write the result to a file\n    with open(result.path, 'w') as f:\n\
+          \    RandomForest_model: Input[Artifact],\n    lr_file: Input[Artifact],\n\
+          \    xgb_file: Input[Artifact],\n    # svm_accuracy: Input[Artifact],\n\
+          \    rf_file: Input[Artifact],\n    final_model: Output[Model],\n    result:\
+          \ Output[Artifact]\n) -> None:\n    import joblib\n    import json\n   \
+          \ # Read accuracies\n\n    lr_jsonFile = open(lr_file.path,'r')\n    f =\
+          \ lr_jsonFile.read()\n    lr = json.loads(f)\n\n    xgb_jsonFile = open(xgb_file.path,'r')\n\
+          \    f = xgb_jsonFile.read()\n    xgb = json.loads(f)\n\n    rf_jsonFile\
+          \ = open(rf_file.path,'r')\n    f = rf_jsonFile.read()\n    rf = json.loads(f)\n\
+          \n    accuracy = {'LogisticRegression': lr['accuracy'], \n             \
+          \   'XGBoost': xgb['accuracy'],\n                'RandomForest': rf['accuracy']\n\
+          \                }\n    model = {'LogisticRegression': lr['model_path'],\
+          \ \n            'XGBoost': xgb['model_path'],\n            'RandomForest':\
+          \ rf['model_path']\n            }\n    sorted(accuracy.items(), key=lambda\
+          \ x:x[1])\n    # best_model = joblib.load(model[list(accuracy.keys())[0]])\
+          \ # get the name of best model\n    best_model = joblib.load(model[\"LogisticRegression\"\
+          ]) # get the name of best model\n    joblib.dump(best_model, final_model.path)\n\
+          \    result_string = f'Best Model is {model[list(accuracy.keys())[0]]} :\
+          \ {accuracy[model[list(accuracy.keys())[0]]]}'\n    print(result_string)\n\
+          \n    # Write the result to a file\n    with open(result.path, 'w') as f:\n\
           \        f.write(result_string)\n\n"
         image: python:3.9
     exec-load-data:
@@ -397,8 +398,10 @@ deploymentSpec:
           \    lr_model.fit(X_train, Y_train.values.ravel())\n    print('Training\
           \ accuracy:', lr_model.score(X_train, Y_train))\n    lr_accuracy = lr_model.score(X_test,\
           \ Y_test)\n    print('Test accuracy:', lr_accuracy)\n\n    # Save the model\n\
-          \    joblib.dump(lr_model, model.path)\n    # Save the accuracy\n    with\
-          \ open(accuracy.path, 'w') as f:\n        f.write(str(lr_accuracy))\n\n"
+          \    joblib.dump(lr_model, model.path)\n    # Save the accuracy\n    jsonFile\
+          \ = open(accuracy.path,'w')\n    data = {}\n    data['accuracy'] = lr_accuracy\n\
+          \    data['model_path'] = model.path\n    json.dump(data, jsonFile, indent=2)\n\
+          \n"
         image: python:3.9
     exec-train-model-randomforest:
       container:
@@ -433,14 +436,16 @@ deploymentSpec:
           \ \n    model: Output[Artifact],\n    accuracy: Output[Artifact]\n):\n \
           \   import pandas as pd\n    from sklearn.metrics import accuracy_score\n\
           \    from sklearn.ensemble import RandomForestClassifier\n    import joblib\n\
-          \n    X_train = pd.read_csv(X_train.path)\n    Y_train = pd.read_csv(Y_train.path)\n\
-          \    X_val = pd.read_csv(X_val.path)\n    Y_val = pd.read_csv(Y_val.path)\n\
-          \    X_test = pd.read_csv(X_test.path)\n    Y_test = pd.read_csv(Y_test.path)\n\
-          \n    rfc=RandomForestClassifier(n_estimators=5)\n    rfc.fit(X_train,Y_train.values.ravel())\
-          \    \n    y_predict=rfc.predict(X_test)\n    rfc.predict(X_test)\n    rf_accuracy\
-          \ = rfc.score(X_test,Y_test)\n    # Save the model\n    joblib.dump(rfc,\
-          \ model.path)\n\n     # Save the accuracy\n    with open(accuracy.path,\
-          \ 'w') as f:\n        f.write(str(rf_accuracy))\n\n"
+          \    import json\n\n    X_train = pd.read_csv(X_train.path)\n    Y_train\
+          \ = pd.read_csv(Y_train.path)\n    X_val = pd.read_csv(X_val.path)\n   \
+          \ Y_val = pd.read_csv(Y_val.path)\n    X_test = pd.read_csv(X_test.path)\n\
+          \    Y_test = pd.read_csv(Y_test.path)\n\n    rfc=RandomForestClassifier(n_estimators=5)\n\
+          \    rfc.fit(X_train,Y_train.values.ravel())    \n    y_predict=rfc.predict(X_test)\n\
+          \    rfc.predict(X_test)\n    rf_accuracy = rfc.score(X_test,Y_test)\n \
+          \   # Save the model\n    joblib.dump(rfc, model.path)\n\n     # Save the\
+          \ accuracy\n    jsonFile = open(accuracy.path,'w')\n    data = {}\n    data['accuracy']\
+          \ = rf_accuracy\n    data['model_path'] = model.path\n    json.dump(data,\
+          \ jsonFile, indent=2)\n\n"
         image: python:3.9
     exec-train-model-xgboost:
       container:
@@ -476,9 +481,9 @@ deploymentSpec:
           \ Output[Artifact],\n    accuracy: Output[Artifact]\n):\n    import pandas\
           \ as pd\n    import xgboost as xgb\n    from sklearn.linear_model import\
           \ LogisticRegression\n    from sklearn.metrics import accuracy_score\n \
-          \   import joblib\n\n    X_train = pd.read_csv(X_train.path)\n    Y_train\
-          \ = pd.read_csv(Y_train.path)\n    X_val = pd.read_csv(X_val.path)\n   \
-          \ Y_val = pd.read_csv(Y_val.path)\n    X_test = pd.read_csv(X_test.path)\n\
+          \   import joblib\n    import json\n\n    X_train = pd.read_csv(X_train.path)\n\
+          \    Y_train = pd.read_csv(Y_train.path)\n    X_val = pd.read_csv(X_val.path)\n\
+          \    Y_val = pd.read_csv(Y_val.path)\n    X_test = pd.read_csv(X_test.path)\n\
           \    Y_test = pd.read_csv(Y_test.path)\n\n    dtrain = xgb.DMatrix(X_train,\
           \ label=Y_train)\n    dval = xgb.DMatrix(X_val, label=Y_val)\n    dtest\
           \ = xgb.DMatrix(X_test, label=Y_test)\n\n    scale_pos_weight = len(Y_train[Y_train\
@@ -491,8 +496,10 @@ deploymentSpec:
           \ = [round(value) for value in preds]\n    global xgb_accuracy \n    xgb_accuracy\
           \ = accuracy_score(Y_test, predictions)\n    print('XGBoost Test accuracy:',\
           \ xgb_accuracy)\n\n    # Save the model\n    joblib.dump(xgb_model, model.path)\n\
-          \n     # Save the accuracy\n    with open(accuracy.path, 'w') as f:\n  \
-          \      f.write(str(xgb_accuracy))\n\n"
+          \n     # Save the accuracy\n    jsonFile = open(accuracy.path,'w')\n   \
+          \ data = {}\n    data['accuracy'] = xgb_accuracy\n    data['model_path']\
+          \ = model.path\n    json.dump(data, jsonFile, indent=2)\n    # with open(accuracy.path,\
+          \ 'w') as f:\n    #     f.write(str(xgb_accuracy))\n\n"
         image: python:3.9
 pipelineInfo:
   description: Using Kubeflow pipeline to train and evaluate a HeartDisease prediction
@@ -524,15 +531,15 @@ root:
               taskOutputArtifact:
                 outputArtifactKey: model
                 producerTask: train-model-xgboost
-            lr_accuracy:
+            lr_file:
               taskOutputArtifact:
                 outputArtifactKey: accuracy
                 producerTask: train-model-logisticregression
-            rf_accuracy:
+            rf_file:
               taskOutputArtifact:
                 outputArtifactKey: accuracy
                 producerTask: train-model-randomforest
-            xgb_accuracy:
+            xgb_file:
               taskOutputArtifact:
                 outputArtifactKey: accuracy
                 producerTask: train-model-xgboost

@@ -144,8 +144,11 @@ def train_model_LogisticRegression(
     # Save the model
     joblib.dump(lr_model, model.path)
     # Save the accuracy
-    with open(accuracy.path, 'w') as f:
-        f.write(str(lr_accuracy))
+    jsonFile = open(accuracy.path,'w')
+    data = {}
+    data['accuracy'] = lr_accuracy
+    data['model_path'] = model.path
+    json.dump(data, jsonFile, indent=2)
 @dsl.component(
     base_image='python:3.9',
     packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2', 'xgboost==2.0.3']
@@ -165,6 +168,7 @@ def train_model_xgboost(
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import accuracy_score
     import joblib
+    import json
     
     X_train = pd.read_csv(X_train.path)
     Y_train = pd.read_csv(Y_train.path)
@@ -198,8 +202,13 @@ def train_model_xgboost(
     joblib.dump(xgb_model, model.path)
 
      # Save the accuracy
-    with open(accuracy.path, 'w') as f:
-        f.write(str(xgb_accuracy))
+    jsonFile = open(accuracy.path,'w')
+    data = {}
+    data['accuracy'] = xgb_accuracy
+    data['model_path'] = model.path
+    json.dump(data, jsonFile, indent=2)
+    # with open(accuracy.path, 'w') as f:
+    #     f.write(str(xgb_accuracy))
 
 # @dsl.component(
 #     base_image='python:3.9',
@@ -256,6 +265,7 @@ def train_model_RandomForest(
     from sklearn.metrics import accuracy_score
     from sklearn.ensemble import RandomForestClassifier
     import joblib
+    import json
     
     X_train = pd.read_csv(X_train.path)
     Y_train = pd.read_csv(Y_train.path)
@@ -273,49 +283,59 @@ def train_model_RandomForest(
     joblib.dump(rfc, model.path)
 
      # Save the accuracy
-    with open(accuracy.path, 'w') as f:
-        f.write(str(rf_accuracy))
+    jsonFile = open(accuracy.path,'w')
+    data = {}
+    data['accuracy'] = rf_accuracy
+    data['model_path'] = model.path
+    json.dump(data, jsonFile, indent=2)
 
 @dsl.component(
     base_image='python:3.9',
-    packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2', 'xgboost==2.0.3']
+    packages_to_install=['joblib==1.4.2', 'scikit-learn==1.5.1']
 )
 def choose_model(
     LogisticRegression_model: Input[Artifact],
     XGBoost_model: Input[Artifact],
     # SVM_model: Input[Artifact],
     RandomForest_model: Input[Artifact],
-    lr_accuracy: Input[Artifact],
-    xgb_accuracy: Input[Artifact],
+    lr_file: Input[Artifact],
+    xgb_file: Input[Artifact],
     # svm_accuracy: Input[Artifact],
-    rf_accuracy: Input[Artifact],
+    rf_file: Input[Artifact],
     final_model: Output[Model],
     result: Output[Artifact]
 ) -> None:
     import joblib
-
+    import json
     # Read accuracies
-    with open(lr_accuracy.path, 'r') as f:
-        lr_acc = float(f.read().strip())
-    with open(xgb_accuracy.path, 'r') as f:
-        xgb_acc = float(f.read().strip())
-    # with open(svm_accuracy.path, 'r') as f:
-    #     svm_acc = float(f.read().strip())
-    with open(rf_accuracy.path, 'r') as f:
-        rf_acc = float(f.read().strip())
-    # Choose the best model
-    if xgb_acc > lr_acc:
-        best_model = joblib.load(XGBoost_model.path)
-        joblib.dump(best_model, final_model.path)
-        best_model_name = "XGBoost"
-    else:
-        best_model = joblib.load(LogisticRegression_model.path)
-        joblib.dump(best_model, final_model.path)
-        best_model_name = "Logistic Regression"
-
-    result_string = f'Logistic Regression accuracy: {lr_acc}, XGBoost accuracy: {xgb_acc}, RandomForest accuracy: {rf_acc}. Best model: {best_model_name}'
-    print(result_string)
     
+    lr_jsonFile = open(lr_file.path,'r')
+    f = lr_jsonFile.read()
+    lr = json.loads(f)
+
+    xgb_jsonFile = open(xgb_file.path,'r')
+    f = xgb_jsonFile.read()
+    xgb = json.loads(f)
+
+    rf_jsonFile = open(rf_file.path,'r')
+    f = rf_jsonFile.read()
+    rf = json.loads(f)
+    
+    accuracy = {'LogisticRegression': lr['accuracy'], 
+                'XGBoost': xgb['accuracy'],
+                'RandomForest': rf['accuracy']
+                }
+    model = {'LogisticRegression': lr['model_path'], 
+            'XGBoost': xgb['model_path'],
+            'RandomForest': rf['model_path']
+            }
+    sorted(accuracy.items(), key=lambda x:x[1])
+    # best_model = joblib.load(model[list(accuracy.keys())[0]]) # get the name of best model
+    best_model = joblib.load(model["LogisticRegression"]) # get the name of best model
+    joblib.dump(best_model, final_model.path)
+    result_string = f'Best Model is {model[list(accuracy.keys())[0]]} : {accuracy[model[list(accuracy.keys())[0]]]}'
+    print(result_string)
+
     # Write the result to a file
     with open(result.path, 'w') as f:
         f.write(result_string)
@@ -373,10 +393,10 @@ def HeartDisease_prediction_pipeline():
         XGBoost_model=train_model_xgboost_task.outputs['model'],
         # SVM_model=train_model_svm_task.outputs['model'],
         RandomForest_model=train_model_RandomForest_task.outputs['model'],
-        lr_accuracy=train_model_LogisticRegression_task.outputs['accuracy'],
-        xgb_accuracy=train_model_xgboost_task.outputs['accuracy'],
+        lr_file=train_model_LogisticRegression_task.outputs['accuracy'],
+        xgb_file=train_model_xgboost_task.outputs['accuracy'],
         # svm_accuracy=train_model_svm_task.outputs['accuracy'],
-        rf_accuracy=train_model_RandomForest_task.outputs['accuracy']
+        rf_file=train_model_RandomForest_task.outputs['accuracy']
     )
     
     # The pipeline doesn't need to return anything explicitly now
