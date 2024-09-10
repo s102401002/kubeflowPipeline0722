@@ -4,7 +4,7 @@ import kfp
 import kfp.compiler
 
 from kfp import dsl
-from kfp.dsl import OutputPath, InputPath, Input, Output, Artifact
+from kfp.dsl import OutputPath, InputPath, Input, Output, Artifact, Model, Dataset 
 
 from pandas import DataFrame
 # from kfp.components import func_to_container_op
@@ -101,86 +101,297 @@ def prepare_data(
 
 @dsl.component(
     base_image='python:3.9',
-    packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2', 'xgboost==2.0.3']
+    packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2']
 )
-def train_model(
+def train_model_LogisticRegression(
     X_train: Input[Artifact], 
     Y_train: Input[Artifact], 
+    X_val: Input[Artifact], 
+    Y_val: Input[Artifact],
     X_test: Input[Artifact], 
     Y_test: Input[Artifact], 
+    model: Output[Artifact],
+    accuracy: Output[Artifact]
+):
+    import pandas as pd
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import accuracy_score
+    import joblib
+    import json
+    
+    X_train = pd.read_csv(X_train.path)
+    Y_train = pd.read_csv(Y_train.path)
+    X_val = pd.read_csv(X_val.path)
+    Y_val = pd.read_csv(Y_val.path)
+    X_test = pd.read_csv(X_test.path)
+    Y_test = pd.read_csv(Y_test.path)
+
+    # Logistic Regression
+    print('Logistic Regression')
+    lr_model = LogisticRegression(random_state=0, max_iter=10000)
+    lr_model.fit(X_train, Y_train.values.ravel())
+    print('Training accuracy:', lr_model.score(X_train, Y_train))
+    lr_accuracy = lr_model.score(X_test, Y_test)
+    print('Test accuracy:', lr_accuracy)
+    
+    # Save the model
+    joblib.dump(lr_model, model.path)
+    # Save the accuracy
+    jsonFile = open(accuracy.path,'w')
+    data = {}
+    data['accuracy'] = lr_accuracy
+    data['model_path'] = model.path
+    json.dump(data, jsonFile, indent=2)
+@dsl.component(
+    base_image='python:3.9',
+    packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2', 'xgboost==2.0.3']
+)
+def train_model_xgboost(
+    X_train: Input[Artifact], 
+    Y_train: Input[Artifact],
     X_val: Input[Artifact], 
-    Y_val: Input[Artifact]
-) -> str:
+    Y_val: Input[Artifact],
+    X_test: Input[Artifact], 
+    Y_test: Input[Artifact], 
+    model: Output[Artifact],
+    accuracy: Output[Artifact]
+):
     import pandas as pd
     import xgboost as xgb
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import accuracy_score
     import joblib
+    import json
     
     X_train = pd.read_csv(X_train.path)
     Y_train = pd.read_csv(Y_train.path)
-    X_test = pd.read_csv(X_test.path)
-    Y_test = pd.read_csv(Y_test.path)
     X_val = pd.read_csv(X_val.path)
     Y_val = pd.read_csv(Y_val.path)
-    # XGBoost
-    print('XGBoost')
-    def XGBoost_training():
-        # 將資料轉換為 DMatrix 格式
-        dtrain = xgb.DMatrix(X_train, label=Y_train)
-        dval = xgb.DMatrix(X_val, label=Y_val)
-        dtest = xgb.DMatrix(X_test, label=Y_test)
+    X_test = pd.read_csv(X_test.path)
+    Y_test = pd.read_csv(Y_test.path)
 
-        # 計算正樣本和負樣本的比例
-        scale_pos_weight = len(Y_train[Y_train == 0]) / len(Y_train[Y_train == 1])#負除以正
-        # 設定參數
-        param = {
-            'max_depth': 3,  # 樹的最大深度
-            'eta': 0.3,      # 學習率
-            'objective': 'binary:logistic',  # 目標函數（二分類問題）
-            'eval_metric': 'logloss',  # 評估指標
-            'scale_pos_weight': scale_pos_weight  # 加權參數
-        }
-        # 訓練模型
-        evallist = [(dtrain, 'train'), (dval, 'eval')]
-        num_round = 1000  
-        Model  = xgb.train(param, dtrain, num_round, evallist, early_stopping_rounds=10)#10次不變即停止
-        preds = Model .predict(dtest)
-        predictions = [round(value) for value in preds]
-        global xgb_accuracy 
-        xgb_accuracy = accuracy_score(Y_test, predictions)
-        print('XGBoost Test accuracy:', xgb_accuracy)
-        return Model
+    dtrain = xgb.DMatrix(X_train, label=Y_train)
+    dval = xgb.DMatrix(X_val, label=Y_val)
+    dtest = xgb.DMatrix(X_test, label=Y_test)
+
+    scale_pos_weight = len(Y_train[Y_train == 0]) / len(Y_train[Y_train == 1])
+    param = {
+        'max_depth': 3,
+        'eta': 0.3,
+        'objective': 'binary:logistic',
+        'eval_metric': 'logloss',
+        'scale_pos_weight': scale_pos_weight
+    }
+    evallist = [(dtrain, 'train'), (dval, 'eval')]
+    num_round = 1000
+    xgb_model = xgb.train(param, dtrain, num_round, evallist, early_stopping_rounds=10)
+    preds = xgb_model.predict(dtest)
+    predictions = [round(value) for value in preds]
+    global xgb_accuracy 
+    xgb_accuracy = accuracy_score(Y_test, predictions)
+    print('XGBoost Test accuracy:', xgb_accuracy)
     
-    xgb_model = XGBoost_training()
     # Save the model
-    # joblib.dump(xgb_model, model_output.path)
-    return f'XGBoost accuracy: {xgb_accuracy}'
+    joblib.dump(xgb_model, model.path)
 
+     # Save the accuracy
+    jsonFile = open(accuracy.path,'w')
+    data = {}
+    data['accuracy'] = xgb_accuracy
+    data['model_path'] = model.path
+    json.dump(data, jsonFile, indent=2)
+    # with open(accuracy.path, 'w') as f:
+    #     f.write(str(xgb_accuracy))
+
+# @dsl.component(
+#     base_image='python:3.9',
+#     packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2']
+# )
+# def train_model_svm(
+#     X_train: Input[Artifact], 
+#     Y_train: Input[Artifact],
+#     X_val: Input[Artifact], 
+#     Y_val: Input[Artifact],
+#     X_test: Input[Artifact], 
+#     Y_test: Input[Artifact], 
+#     model: Output[Artifact],
+#     accuracy: Output[Artifact]
+# ):
+#     import pandas as pd
+#     from sklearn.metrics import accuracy_score
+#     from sklearn import svm
+#     import joblib
+    
+#     X_train = pd.read_csv(X_train.path)
+#     Y_train = pd.read_csv(Y_train.path)
+#     X_val = pd.read_csv(X_val.path)
+#     Y_val = pd.read_csv(Y_val.path)
+#     X_test = pd.read_csv(X_test.path)
+#     Y_test = pd.read_csv(Y_test.path)
+
+#     clf=svm.SVC(kernel='poly',gamma='auto',C=100)
+#     clf.fit(X_train,Y_train.values.ravel())
+#     clf.predict(X_test)
+#     svm_accuracy = clf.score(X_test, Y_test)
+#     # Save the model
+#     joblib.dump(model, clf.path)
+
+#      # Save the accuracy
+#     with open(accuracy.path, 'w') as f:
+#         f.write(str(svm_accuracy))
+
+@dsl.component(
+    base_image='python:3.9',
+    packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2']
+)
+def train_model_RandomForest(
+    X_train: Input[Artifact], 
+    Y_train: Input[Artifact],
+    X_val: Input[Artifact], 
+    Y_val: Input[Artifact],
+    X_test: Input[Artifact], 
+    Y_test: Input[Artifact], 
+    model: Output[Artifact],
+    accuracy: Output[Artifact]
+):
+    import pandas as pd
+    from sklearn.metrics import accuracy_score
+    from sklearn.ensemble import RandomForestClassifier
+    import joblib
+    import json
+    
+    X_train = pd.read_csv(X_train.path)
+    Y_train = pd.read_csv(Y_train.path)
+    X_val = pd.read_csv(X_val.path)
+    Y_val = pd.read_csv(Y_val.path)
+    X_test = pd.read_csv(X_test.path)
+    Y_test = pd.read_csv(Y_test.path)
+
+    rfc=RandomForestClassifier(n_estimators=5)
+    rfc.fit(X_train,Y_train.values.ravel())    
+    y_predict=rfc.predict(X_test)
+    rfc.predict(X_test)
+    rf_accuracy = rfc.score(X_test,Y_test)
+    # Save the model
+    joblib.dump(rfc, model.path)
+
+     # Save the accuracy
+    jsonFile = open(accuracy.path,'w')
+    data = {}
+    data['accuracy'] = rf_accuracy
+    data['model_path'] = model.path
+    json.dump(data, jsonFile, indent=2)
+
+@dsl.component(
+    base_image='python:3.9',
+    packages_to_install=['joblib==1.4.2', 'scikit-learn==1.5.1', 'xgboost==2.0.3']
+)
+def choose_model(
+    LogisticRegression_model: Input[Artifact],
+    XGBoost_model: Input[Artifact],
+    # SVM_model: Input[Artifact],
+    RandomForest_model: Input[Artifact],
+    lr_file: Input[Artifact],
+    xgb_file: Input[Artifact],
+    # svm_accuracy: Input[Artifact],
+    rf_file: Input[Artifact],
+    final_model: Output[Model],
+    result: Output[Artifact]
+) -> None:
+    import joblib
+    import json
+
+    # Define a dictionary to store model artifacts and their corresponding JSON files
+    models = {
+        'LogisticRegression': lr_file,
+        'XGBoost': xgb_file,
+        'RandomForest': rf_file
+    }
+
+    accuracy = {}
+    model_paths = {}
+
+    # Read accuracies and model paths
+    for model_name, json_file in models.items():
+        with open(json_file.path, 'r') as f:
+            data = json.load(f)
+        accuracy[model_name] = data['accuracy']
+        model_paths[model_name] = data['model_path']
+
+    # Find the best model
+    best_model_name = max(accuracy, key=accuracy.get)
+    best_model = joblib.load(model_paths[best_model_name])
+    
+    # Save the best model
+    joblib.dump(best_model, final_model.path)
+
+    # Prepare result string
+    result_string = f'Best Model is {best_model_name} : {accuracy[best_model_name]}'
+    print(result_string)
+
+    # Write the result to a file
+    with open(result.path, 'w') as f:
+        f.write(result_string)
 @dsl.pipeline(
     name='Stroke Prediction Pipeline',
     description='Using Kubeflow pipeline to train and evaluate a Stroke prediction model'
 )
-def Stroke_prediction_pipeline() -> str:
-    # 加載數據
+def Stroke_prediction_pipeline():
+    # Load data
     load_data_task = load_data()
 
-    # 準備數據
+    # Prepare data
     prepare_data_task = prepare_data(data_input=load_data_task.outputs['data_output'])
     
-    # 訓練模型
-    train_model_task = train_model(
+    # Train models
+    train_model_LogisticRegression_task = train_model_LogisticRegression(
         X_train=prepare_data_task.outputs['X_train_output'], 
         Y_train=prepare_data_task.outputs['Y_train_output'],
-        X_test=prepare_data_task.outputs['X_test_output'], 
-        Y_test=prepare_data_task.outputs['Y_test_output'],
         X_val=prepare_data_task.outputs['X_val_output'],
         Y_val=prepare_data_task.outputs['Y_val_output'],
-        # model_output=prepare_data_task.outputs['model_output']  # 確保從 prepare_data 中正確引用輸出
+        X_test=prepare_data_task.outputs['X_test_output'], 
+        Y_test=prepare_data_task.outputs['Y_test_output']
+    )
+
+    train_model_xgboost_task = train_model_xgboost(
+        X_train=prepare_data_task.outputs['X_train_output'], 
+        Y_train=prepare_data_task.outputs['Y_train_output'],
+        X_val=prepare_data_task.outputs['X_val_output'],
+        Y_val=prepare_data_task.outputs['Y_val_output'],
+        X_test=prepare_data_task.outputs['X_test_output'], 
+        Y_test=prepare_data_task.outputs['Y_test_output']
     )
     
-    # 返回模型的準確度
-    return train_model_task.output  # 返回 train_model 任務的輸出
+    # train_model_svm_task = train_model_svm(
+    #     X_train=prepare_data_task.outputs['X_train_output'], 
+    #     Y_train=prepare_data_task.outputs['Y_train_output'],
+    #     X_val=prepare_data_task.outputs['X_val_output'],
+    #     Y_val=prepare_data_task.outputs['Y_val_output'],
+    #     X_test=prepare_data_task.outputs['X_test_output'], 
+    #     Y_test=prepare_data_task.outputs['Y_test_output']
+    # )
 
+    train_model_RandomForest_task = train_model_RandomForest(
+        X_train=prepare_data_task.outputs['X_train_output'], 
+        Y_train=prepare_data_task.outputs['Y_train_output'],
+        X_val=prepare_data_task.outputs['X_val_output'],
+        Y_val=prepare_data_task.outputs['Y_val_output'],
+        X_test=prepare_data_task.outputs['X_test_output'], 
+        Y_test=prepare_data_task.outputs['Y_test_output']
+    )
+
+
+    choose_model_task = choose_model(
+        LogisticRegression_model=train_model_LogisticRegression_task.outputs['model'],
+        XGBoost_model=train_model_xgboost_task.outputs['model'],
+        # SVM_model=train_model_svm_task.outputs['model'],
+        RandomForest_model=train_model_RandomForest_task.outputs['model'],
+        lr_file=train_model_LogisticRegression_task.outputs['accuracy'],
+        xgb_file=train_model_xgboost_task.outputs['accuracy'],
+        # svm_accuracy=train_model_svm_task.outputs['accuracy'],
+        rf_file=train_model_RandomForest_task.outputs['accuracy']
+    )
+    
+    # The pipeline doesn't need to return anything explicitly now
 if __name__ == '__main__':
     kfp.compiler.Compiler().compile(Stroke_prediction_pipeline, 'Stroke_prediction_pipeline.yaml')

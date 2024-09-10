@@ -6,6 +6,10 @@ components:
     executorLabel: exec-choose-model
     inputDefinitions:
       artifacts:
+        KNN_model:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
         LogisticRegression_model:
           artifactType:
             schemaTitle: system.Artifact
@@ -15,6 +19,10 @@ components:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
         XGBoost_model:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        knn_file:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
@@ -79,6 +87,44 @@ components:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
         Y_val_output:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-train-model-knn:
+    executorLabel: exec-train-model-knn
+    inputDefinitions:
+      artifacts:
+        X_test:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        X_train:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        X_val:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_test:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_train:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        Y_val:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        accuracy:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        model:
           artifactType:
             schemaTitle: system.Artifact
             schemaVersion: 0.0.1
@@ -227,14 +273,15 @@ deploymentSpec:
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
           \ *\n\ndef choose_model(\n    LogisticRegression_model: Input[Artifact],\n\
           \    XGBoost_model: Input[Artifact],\n    # SVM_model: Input[Artifact],\n\
-          \    RandomForest_model: Input[Artifact],\n    lr_file: Input[Artifact],\n\
-          \    xgb_file: Input[Artifact],\n    # svm_accuracy: Input[Artifact],\n\
-          \    rf_file: Input[Artifact],\n    final_model: Output[Model],\n    result:\
-          \ Output[Artifact]\n) -> None:\n    import joblib\n    import json\n\n \
-          \   # Define a dictionary to store model artifacts and their corresponding\
-          \ JSON files\n    models = {\n        'LogisticRegression': lr_file,\n \
-          \       'XGBoost': xgb_file,\n        'RandomForest': rf_file\n    }\n\n\
-          \    accuracy = {}\n    model_paths = {}\n\n    # Read accuracies and model\
+          \    RandomForest_model: Input[Artifact],\n    KNN_model: Input[Artifact],\n\
+          \    lr_file: Input[Artifact],\n    xgb_file: Input[Artifact],\n    # svm_accuracy:\
+          \ Input[Artifact],\n    rf_file: Input[Artifact],\n    knn_file: Input[Artifact],\n\
+          \    final_model: Output[Model],\n    result: Output[Artifact]\n) -> None:\n\
+          \    import joblib\n    import json\n\n    # Define a dictionary to store\
+          \ model artifacts and their corresponding JSON files\n    models = {\n \
+          \       'LogisticRegression': lr_file,\n        'XGBoost': xgb_file,\n \
+          \       'RandomForest': rf_file,\n        'KNN': knn_file\n    }\n\n   \
+          \ accuracy = {}\n    model_paths = {}\n\n    # Read accuracies and model\
           \ paths\n    for model_name, json_file in models.items():\n        with\
           \ open(json_file.path, 'r') as f:\n            data = json.load(f)\n   \
           \     accuracy[model_name] = data['accuracy']\n        model_paths[model_name]\
@@ -354,6 +401,51 @@ deploymentSpec:
           \ index=False)\n    Y_test.to_csv(Y_test_output.path, index=False)\n   \
           \ X_val.to_csv(X_val_output.path, index=False)\n    Y_val.to_csv(Y_val_output.path,\
           \ index=False)\n\n"
+        image: python:3.9
+    exec-train-model-knn:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_model_KNN
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas==2.2.2'\
+          \ 'scikit-learn==1.5.1' 'joblib==1.4.2' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef train_model_KNN(\n    X_train: Input[Artifact], \n    Y_train:\
+          \ Input[Artifact],\n    X_val: Input[Artifact], \n    Y_val: Input[Artifact],\n\
+          \    X_test: Input[Artifact], \n    Y_test: Input[Artifact], \n    model:\
+          \ Output[Artifact],\n    accuracy: Output[Artifact]\n):\n    import pandas\
+          \ as pd\n    from sklearn.neighbors import KNeighborsClassifier\n    from\
+          \ sklearn.model_selection import StratifiedKFold\n    from sklearn.model_selection\
+          \ import train_test_split\n    from sklearn.model_selection import cross_val_score\n\
+          \    from sklearn.datasets import load_iris\n    import joblib\n    import\
+          \ json\n\n    X_train = pd.read_csv(X_train.path)\n    Y_train = pd.read_csv(Y_train.path)\n\
+          \    X_val = pd.read_csv(X_val.path)\n    Y_val = pd.read_csv(Y_val.path)\n\
+          \    X_test = pd.read_csv(X_test.path)\n    Y_test = pd.read_csv(Y_test.path)\n\
+          \n    knc = KNeighborsClassifier(n_neighbors=5)\n    knc.fit(X_train,Y_train.values.ravel())\n\
+          \    knn_accuracy = knc.score(X_test,Y_test)\n    # Save the model\n   \
+          \ joblib.dump(knc, model.path)\n\n     # Save the accuracy\n    jsonFile\
+          \ = open(accuracy.path,'w')\n    data = {}\n    data['accuracy'] = knn_accuracy\n\
+          \    data['model_path'] = model.path\n    json.dump(data, jsonFile, indent=2)\n\
+          \n"
         image: python:3.9
     exec-train-model-logisticregression:
       container:
@@ -512,11 +604,16 @@ root:
         componentRef:
           name: comp-choose-model
         dependentTasks:
+        - train-model-knn
         - train-model-logisticregression
         - train-model-randomforest
         - train-model-xgboost
         inputs:
           artifacts:
+            KNN_model:
+              taskOutputArtifact:
+                outputArtifactKey: model
+                producerTask: train-model-knn
             LogisticRegression_model:
               taskOutputArtifact:
                 outputArtifactKey: model
@@ -529,6 +626,10 @@ root:
               taskOutputArtifact:
                 outputArtifactKey: model
                 producerTask: train-model-xgboost
+            knn_file:
+              taskOutputArtifact:
+                outputArtifactKey: accuracy
+                producerTask: train-model-knn
             lr_file:
               taskOutputArtifact:
                 outputArtifactKey: accuracy
@@ -565,6 +666,41 @@ root:
                 producerTask: load-data
         taskInfo:
           name: prepare-data
+      train-model-knn:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-train-model-knn
+        dependentTasks:
+        - prepare-data
+        inputs:
+          artifacts:
+            X_test:
+              taskOutputArtifact:
+                outputArtifactKey: X_test_output
+                producerTask: prepare-data
+            X_train:
+              taskOutputArtifact:
+                outputArtifactKey: X_train_output
+                producerTask: prepare-data
+            X_val:
+              taskOutputArtifact:
+                outputArtifactKey: X_val_output
+                producerTask: prepare-data
+            Y_test:
+              taskOutputArtifact:
+                outputArtifactKey: Y_test_output
+                producerTask: prepare-data
+            Y_train:
+              taskOutputArtifact:
+                outputArtifactKey: Y_train_output
+                producerTask: prepare-data
+            Y_val:
+              taskOutputArtifact:
+                outputArtifactKey: Y_val_output
+                producerTask: prepare-data
+        taskInfo:
+          name: train-model-knn
       train-model-logisticregression:
         cachingOptions:
           enableCache: true
