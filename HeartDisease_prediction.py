@@ -118,7 +118,7 @@ def train_model_LogisticRegression(
     X_test: Input[Artifact], 
     Y_test: Input[Artifact], 
     model: Output[Artifact],
-    accuracy: Output[Artifact]
+    file: Output[Artifact]
 ):
     import pandas as pd
     from sklearn.linear_model import LogisticRegression
@@ -144,7 +144,7 @@ def train_model_LogisticRegression(
     # Save the model
     joblib.dump(lr_model, model.path)
     # Save the accuracy
-    jsonFile = open(accuracy.path,'w')
+    jsonFile = open(file.path,'w')
     data = {}
     data['accuracy'] = lr_accuracy
     data['model_path'] = model.path
@@ -161,7 +161,7 @@ def train_model_xgboost(
     X_test: Input[Artifact], 
     Y_test: Input[Artifact], 
     model: Output[Artifact],
-    accuracy: Output[Artifact]
+    file: Output[Artifact]
 ):
     import pandas as pd
     import xgboost as xgb
@@ -202,7 +202,7 @@ def train_model_xgboost(
     joblib.dump(xgb_model, model.path)
 
      # Save the accuracy
-    jsonFile = open(accuracy.path,'w')
+    jsonFile = open(file.path,'w')
     data = {}
     data['accuracy'] = xgb_accuracy
     data['model_path'] = model.path
@@ -259,7 +259,7 @@ def train_model_RandomForest(
     X_test: Input[Artifact], 
     Y_test: Input[Artifact], 
     model: Output[Artifact],
-    accuracy: Output[Artifact]
+    file: Output[Artifact]
 ):
     import pandas as pd
     from sklearn.metrics import accuracy_score
@@ -283,7 +283,7 @@ def train_model_RandomForest(
     joblib.dump(rfc, model.path)
 
      # Save the accuracy
-    jsonFile = open(accuracy.path,'w')
+    jsonFile = open(file.path,'w')
     data = {}
     data['accuracy'] = rf_accuracy
     data['model_path'] = model.path
@@ -301,7 +301,7 @@ def train_model_KNN(
     X_test: Input[Artifact], 
     Y_test: Input[Artifact], 
     model: Output[Artifact],
-    accuracy: Output[Artifact]
+    file: Output[Artifact]
 ):
     import pandas as pd
     from sklearn.neighbors import KNeighborsClassifier
@@ -315,14 +315,14 @@ def train_model_KNN(
     X_test = pd.read_csv(X_test.path)
     Y_test = pd.read_csv(Y_test.path)
 
-    knc = KNeighborsClassifier(n_neighbors=5)
+    knc = KNeighborsClassifier(n_neighbors=3)
     knc.fit(X_train,Y_train.values.ravel())
     knn_accuracy = knc.score(X_test,Y_test)
     # Save the model
     joblib.dump(knc, model.path)
 
      # Save the accuracy
-    jsonFile = open(accuracy.path,'w')
+    jsonFile = open(file.path,'w')
     data = {}
     data['accuracy'] = knn_accuracy
     data['model_path'] = model.path
@@ -330,7 +330,7 @@ def train_model_KNN(
 
 @dsl.component(
     base_image='python:3.9',
-    packages_to_install=['joblib==1.4.2', 'scikit-learn==1.5.1', 'xgboost==2.0.3']
+    packages_to_install=['joblib==1.4.2']# , 'scikit-learn==1.5.1', 'xgboost==2.0.3'
 )
 def choose_model(
     LogisticRegression_model: Input[Artifact],
@@ -444,11 +444,11 @@ def HeartDisease_prediction_pipeline():
         # SVM_model=train_model_svm_task.outputs['model'],
         RandomForest_model=train_model_RandomForest_task.outputs['model'],
         KNN_model=train_model_KNN_task.outputs['model'],
-        lr_file=train_model_LogisticRegression_task.outputs['accuracy'],
-        xgb_file=train_model_xgboost_task.outputs['accuracy'],
-        # svm_accuracy=train_model_svm_task.outputs['accuracy'],
-        rf_file=train_model_RandomForest_task.outputs['accuracy'],
-        knn_file=train_model_KNN_task.outputs['accuracy']
+        lr_file=train_model_LogisticRegression_task.outputs['file'],
+        xgb_file=train_model_xgboost_task.outputs['file'],
+        # svm_file=train_model_svm_task.outputs['file'],
+        rf_file=train_model_RandomForest_task.outputs['file'],
+        knn_file=train_model_KNN_task.outputs['file']
     )
     
     # The pipeline doesn't need to return anything explicitly now
