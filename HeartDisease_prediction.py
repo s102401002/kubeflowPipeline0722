@@ -330,7 +330,7 @@ def train_model_KNN(
 
 @dsl.component(
     base_image='python:3.9',
-    packages_to_install=['joblib==1.4.2']# , 'scikit-learn==1.5.1', 'xgboost==2.0.3'
+    packages_to_install=['joblib==1.4.2', 'scikit-learn==1.5.1', 'xgboost==2.0.3']# 
 )
 def choose_model(
     LogisticRegression_model: Input[Artifact],
