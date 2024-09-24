@@ -451,4 +451,4 @@ def Stroke_prediction_pipeline():
     # The pipeline doesn't need to return anything explicitly now
 
 if __name__ == '__main__':
-    kfp.compiler.Compiler().compile(Stroke_prediction_pipeline, 'Stroke_prediction_pipeline.yaml')
+    kfp.compiler.Compiler().compile(Stroke_prediction_pipeline, '../Stroke_prediction_pipeline.yaml')
