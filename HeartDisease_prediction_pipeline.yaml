@@ -289,7 +289,9 @@ deploymentSpec:
           \ = max(accuracy, key=accuracy.get)\n    best_model = joblib.load(model_paths[best_model_name])\n\
           \n    # Save the best model\n    joblib.dump(best_model, final_model.path)\n\
           \n    # Prepare result string\n    result_string = f'Best Model is {best_model_name}\
-          \ : {accuracy[best_model_name]}'\n    print(result_string)\n\n    # Write\
+          \ : {accuracy[best_model_name]}'\n    result_string += f'\\nAccuracy:\\\
+          n'\n    for model_name, acc in accuracy.items():\n        result_string\
+          \ += f'{model_name:17} : {acc}\\n'\n    print(result_string)\n\n    # Write\
           \ the result to a file\n    with open(result.path, 'w') as f:\n        f.write(result_string)\n\
           \n"
         image: python:3.9

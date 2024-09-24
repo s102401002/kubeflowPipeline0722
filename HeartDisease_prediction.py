@@ -376,6 +376,9 @@ def choose_model(
 
     # Prepare result string
     result_string = f'Best Model is {best_model_name} : {accuracy[best_model_name]}'
+    result_string += f'\nAccuracy:\n'
+    for model_name, acc in accuracy.items():
+        result_string += f'{model_name:17} : {acc}\n'
     print(result_string)
 
     # Write the result to a file

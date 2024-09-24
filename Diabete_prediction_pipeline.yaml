@@ -1,6 +1,6 @@
 # PIPELINE DEFINITION
-# Name: hypertension-prediction-pipeline
-# Description: Using Kubeflow pipeline to train and evaluate a Hypertension prediction model
+# Name: diabete-prediction-pipeline
+# Description: Using Kubeflow pipeline to train and evaluate a Diabete prediction model
 components:
   comp-choose-model:
     executorLabel: exec-choose-model
@@ -291,9 +291,9 @@ deploymentSpec:
           \n    # Prepare result string\n    result_string = f'Best Model is {best_model_name}\
           \ : {accuracy[best_model_name]}'\n    result_string += f'\\nAccuracy:\\\
           n'\n    for model_name, acc in accuracy.items():\n        result_string\
-          \ += f'{model_name:17} : {acc}\\n'\n    print(result_string)\n\n\n    #\
-          \ Write the result to a file\n    with open(result.path, 'w') as f:\n  \
-          \      f.write(result_string)\n\n"
+          \ += f'{model_name:17} : {acc}\\n'\n    print(result_string)\n\n    # Write\
+          \ the result to a file\n    with open(result.path, 'w') as f:\n        f.write(result_string)\n\
+          \n"
         image: python:3.9
     exec-load-data:
       container:
@@ -323,30 +323,30 @@ deploymentSpec:
           '
         - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
           \ *\n\ndef load_data(data_output: Output[Artifact]):\n    import pandas\
-          \ as pd\n\n    # \u8B80\u53D6\u8207\u7A0B\u5F0F\u78BC\u4F4D\u65BC\u540C\u4E00\
-          \u500B\u8CC7\u6599\u593E\u4E2D\u7684 hypertension.csv\n    df_data = pd.read_csv('https://raw.githubusercontent.com/s102401002/kubeflowPipeline0722/main/hypertension_data.csv')\n\
-          \n    # \u79FB\u9664\u4E0D\u9700\u8981\u7684\u6B04\u4F4D\n    df_data =\
-          \ df_data.drop(columns=['cp','thal'])\n\n\n    # \u88DC\u9F4A\u8CC7\u6599\
-          \n    df_data = df_data[(df_data['age'] != 'N/A') & (~df_data['age'].isna())]\n\
-          \    df_data = df_data[(df_data['sex'] != 'N/A') & (~df_data['sex'].isna())]\n\
-          \    df_data = df_data[(df_data['trestbps'] != 'N/A') & (~df_data['trestbps'].isna())]\
-          \ #\u975C\u6B62\u8840\u58D3\n    df_data = df_data[(df_data['chol'] != 'N/A')\
-          \ & (~df_data['chol'].isna())] #\u8840\u6E05\u81BD\u56FA\u9187\n    df_data\
-          \ = df_data[(df_data['fbs'] != 'N/A') & (~df_data['fbs'].isna())] #\u662F\
-          \u5426\u60A3\u8005\u7684\u7A7A\u8179\u8840\u7CD6 > 120\n    df_data = df_data[(df_data['restecg']\
-          \ != 'N/A') & (~df_data['restecg'].isna())] #ST-T \u6CE2\u662F\u5426\u7570\
-          \u5E38\n    df_data = df_data[df_data['restecg'] != 2]\n    df_data = df_data[(df_data['thalach']\
-          \ != 'N/A') & (~df_data['thalach'].isna())] #\u6700\u5927\u5FC3\u7387\n\
-          \    df_data = df_data[(df_data['exang'] != 'N/A') & (~df_data['exang'].isna())]\
-          \ #\u662F\u5426\u904B\u52D5\u8A98\u767C\u5FC3\u7D5E\u75DB\n    df_data =\
-          \ df_data[(df_data['oldpeak'] != 'N/A') & (~df_data['oldpeak'].isna())]\
-          \ #\u904B\u52D5\u76F8\u5C0D\u65BC\u4F11\u606F\u5F15\u8D77\u7684 ST \u3002\
-          \n    df_data = df_data[(df_data['slope'] != 'N/A') & (~df_data['slope'].isna())]\
-          \ #\u904B\u52D5\u5CF0\u503C ST \u6BB5\u659C\u7387\uFF1A0\uFF1A\u4E0A\u5761\
-          \ 1\uFF1A\u5E73\u5766 2\uFF1A\u4E0B\u5761\n    df_data = df_data[(df_data['ca']\
-          \ != 'N/A') & (~df_data['ca'].isna())]#\u87A2\u5149\u6AA2\u67E5\u8457\u8272\
-          \u7684\u4E3B\u8981\u8840\u7BA1\u6578\u91CF (0\u20134)\n    df_data = df_data[(df_data['target']\
-          \ != 'N/A') & (~df_data['target'].isna())]\n    df_data.to_csv(data_output.path)\n\
+          \ as pd\n\n    urls = [\n        \"https://raw.githubusercontent.com/daniel88516/diabetes-data/main/10k.csv\"\
+          ,\n        \"https://raw.githubusercontent.com/s102401002/kubeflowPipeline/main/data1.csv\"\
+          \n    ]\n\n    standard_name_mapping = {\n        'gender': ['gender', 'gen',\
+          \ 'Gender', 'sex', 'Sex'],\n        'age': ['age', 'Age', 'AGE'],\n    \
+          \    'bmi': ['bmi', 'BMI', 'Bmi'],\n        'HbA1c_level': ['HbA1c_level',\
+          \ 'HbA1c', 'hba1c'],\n        'blood_glucose_level': ['blood_glucose_level',\
+          \ 'glucose', 'BloodGlucose'],\n        'diabetes': ['diabetes', 'Diabetes']\n\
+          \    }\n\n    datas = [] # download all the csv in urls as a array\n   \
+          \ for url in urls:\n        df = pd.read_csv(url)\n        for standard_name,\
+          \ variants in standard_name_mapping.items():\n            for variant in\
+          \ variants:\n                if variant in df.columns:\n               \
+          \     df.rename(columns={variant: standard_name}, inplace=True) # inplace=True:\
+          \ changing directly instead of creating a new column\n                 \
+          \   break\n\n        datas.append(df)\n\n    df_data = pd.concat(datas,\
+          \ ignore_index=True)\n\n    df_data = df_data.drop(df_data[df_data['diabetes']\
+          \ == 'No Info'].index)\n    df_data = df_data[['gender','age', 'bmi', 'HbA1c_level',\
+          \ 'blood_glucose_level', 'diabetes']]\n    df_data = df_data.dropna(thresh=4)\n\
+          \n    gender_map = {'Male': 0 , 'Female': 1  , 'Other': 2}\n    df_data['gender']\
+          \ = df_data['gender'].map(gender_map)\n    df_data = df_data[df_data['gender']\
+          \ != 2]\n    df_data['age'] = df_data['age'].replace('No Info', df_data['age'].mean())\n\
+          \    df_data['bmi'] = df_data['bmi'].replace('No Info', df_data['bmi'].mean())\n\
+          \    df_data['HbA1c_level'] = df_data['HbA1c_level'].replace('No Info',\
+          \ df_data['HbA1c_level'].mean())\n    df_data['blood_glucose_level'] = df_data['blood_glucose_level'].replace('No\
+          \ Info', df_data['blood_glucose_level'].mean())\n\n    df_data.to_csv(data_output.path)\n\
           \n"
         image: python:3.9
     exec-prepare-data:
@@ -381,8 +381,8 @@ deploymentSpec:
           \ Output[Artifact], Y_test_output: Output[Artifact],\n    X_val_output:\
           \ Output[Artifact], Y_val_output: Output[Artifact]\n):\n    import pandas\
           \ as pd\n    from sklearn.model_selection import train_test_split\n\n  \
-          \  df_data = pd.read_csv(data_input.path)\n\n    X = df_data.drop(labels=['target'],\
-          \ axis=1)\n    Y = df_data[['target']]\n\n    X_train, X_test, Y_train,\
+          \  df_data = pd.read_csv(data_input.path)\n\n    X = df_data.drop(labels=['diabetes'],\
+          \ axis=1)\n    Y = df_data[['diabetes']]\n\n    X_train, X_test, Y_train,\
           \ Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)\n    X_test,\
           \ X_val, Y_test, Y_val = train_test_split(X_test, Y_test, test_size=0.5,\
           \ random_state=42)\n    X_train.to_csv(X_train_output.path, index=False)\n\
@@ -578,9 +578,9 @@ deploymentSpec:
           \ 'w') as f:\n    #     f.write(str(xgb_accuracy))\n\n"
         image: python:3.9
 pipelineInfo:
-  description: Using Kubeflow pipeline to train and evaluate a Hypertension prediction
+  description: Using Kubeflow pipeline to train and evaluate a Diabete prediction
     model
-  name: hypertension-prediction-pipeline
+  name: diabete-prediction-pipeline
 root:
   dag:
     tasks:

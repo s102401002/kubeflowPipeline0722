@@ -1,10 +1,12 @@
+# test
+
 from typing import NewType
 
 import kfp
 import kfp.compiler
 
 from kfp import dsl
-from kfp.dsl import OutputPath, InputPath, Input, Output, Artifact, Model, Dataset 
+from kfp.dsl import OutputPath, InputPath, Input, Output, Artifact, Model, Dataset
 
 from pandas import DataFrame
 # from kfp.components import func_to_container_op
@@ -17,58 +19,46 @@ DF = NewType('DF', DataFrame)
 )
 def load_data(data_output: Output[Artifact]):
     import pandas as pd
+    
+    urls = [
+        "https://raw.githubusercontent.com/daniel88516/diabetes-data/main/10k.csv",
+        "https://raw.githubusercontent.com/s102401002/kubeflowPipeline/main/data1.csv"
+    ]
+    
+    standard_name_mapping = {
+        'gender': ['gender', 'gen', 'Gender', 'sex', 'Sex'],
+        'age': ['age', 'Age', 'AGE'],
+        'bmi': ['bmi', 'BMI', 'Bmi'],
+        'HbA1c_level': ['HbA1c_level', 'HbA1c', 'hba1c'],
+        'blood_glucose_level': ['blood_glucose_level', 'glucose', 'BloodGlucose'],
+        'diabetes': ['diabetes', 'Diabetes']
+    }
 
-    # 讀取與程式碼位於同一個資料夾中的 stroke.csv
-    df_data_1 = pd.read_csv('https://raw.githubusercontent.com/s102401002/kubeflowPipeline0722/main/stroke.csv')
+    datas = [] # download all the csv in urls as a array
+    for url in urls:
+        df = pd.read_csv(url)
+        for standard_name, variants in standard_name_mapping.items():
+            for variant in variants:
+                if variant in df.columns:
+                    df.rename(columns={variant: standard_name}, inplace=True) # inplace=True: changing directly instead of creating a new column
+                    break
+        
+        datas.append(df)
 
-    # 移除不需要的欄位
-    df_data_1 = df_data_1.drop(columns=['id', 'ever_married', 'work_type'])
+    df_data = pd.concat(datas, ignore_index=True)
+    
+    df_data = df_data.drop(df_data[df_data['diabetes'] == 'No Info'].index)
+    df_data = df_data[['gender','age', 'bmi', 'HbA1c_level', 'blood_glucose_level', 'diabetes']]
+    df_data = df_data.dropna(thresh=4)
+    
+    gender_map = {'Male': 0 , 'Female': 1  , 'Other': 2}
+    df_data['gender'] = df_data['gender'].map(gender_map)
+    df_data = df_data[df_data['gender'] != 2]
+    df_data['age'] = df_data['age'].replace('No Info', df_data['age'].mean())
+    df_data['bmi'] = df_data['bmi'].replace('No Info', df_data['bmi'].mean())
+    df_data['HbA1c_level'] = df_data['HbA1c_level'].replace('No Info', df_data['HbA1c_level'].mean())
+    df_data['blood_glucose_level'] = df_data['blood_glucose_level'].replace('No Info', df_data['blood_glucose_level'].mean())
 
-    # 定義映射
-    gender_map = {'Male': 0, 'Female': 1}
-    smoking_status_map = {'Unknown': 0, 'never smoked': 0, 'formerly smoked': 1, 'smokes': 1}
-    Residence_type_map = {'Urban': 1, 'Rural': 0}
-
-    # 補齊資料
-    # gender
-    df_data_1 = df_data_1[(df_data_1['gender'] != 'N/A') & (~df_data_1['gender'].isna())]
-    df_data_1['gender'] = df_data_1['gender'].map(gender_map)  # map
-
-    # age
-    df_data_1 = df_data_1[(df_data_1['age'] != 'N/A') & (~df_data_1['age'].isna())]
-
-    # hypertension
-    df_data_1 = df_data_1[(df_data_1['hypertension'] != 'N/A') & (~df_data_1['hypertension'].isna())]
-
-    # heart_disease
-    df_data_1 = df_data_1[(df_data_1['heart_disease'] != 'N/A') & (~df_data_1['heart_disease'].isna())]
-
-    # Residence_type
-    df_data_1 = df_data_1[(df_data_1['Residence_type'] != 'N/A') & (~df_data_1['Residence_type'].isna())]
-    df_data_1['Residence_type'] = df_data_1['Residence_type'].map(Residence_type_map)  # map
-
-    # avg_glucose_level
-    df_data_1 = df_data_1[(df_data_1['avg_glucose_level'] != 'N/A') & (~df_data_1['avg_glucose_level'].isna())]
-
-    # bmi
-    df_data_1 = df_data_1[(df_data_1['bmi'] != 'N/A') & (~df_data_1['bmi'].isna())]
-
-    # smoking_status
-    df_data_1 = df_data_1[(df_data_1['smoking_status'] != 'N/A') & (~df_data_1['smoking_status'].isna())]
-    df_data_1['smoking_status'] = df_data_1['smoking_status'].map(smoking_status_map)  # map
-
-    df_data_1 = df_data_1.drop(3116)#特殊處理
-    df_data_1 = df_data_1.sample(frac=1).reset_index(drop=True)
-
-    df_data_2 = pd.read_csv('https://raw.githubusercontent.com/s102401002/kubeflowPipeline0722/main/stroke_2.csv')
-    df_data_2 = df_data_2.drop(columns=['ever_married', 'work_type'])
-    df_data_2.rename(columns={'sex': 'gender'}, inplace=True)
-    #合併
-    df_data = pd.concat([df_data_1, df_data_2], ignore_index=True)
-
-    # 删除指定的行
-    rows_to_delete = [27386, 33816, 40092]
-    df_data = df_data.drop(index=rows_to_delete)
     df_data.to_csv(data_output.path)
 
 @dsl.component(
@@ -86,8 +76,8 @@ def prepare_data(
 
     df_data = pd.read_csv(data_input.path)
 
-    X = df_data.drop(labels=['stroke'], axis=1)
-    Y = df_data[['stroke']]
+    X = df_data.drop(labels=['diabetes'], axis=1)
+    Y = df_data[['diabetes']]
     
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
     X_test, X_val, Y_test, Y_val = train_test_split(X_test, Y_test, test_size=0.5, random_state=42)
@@ -97,7 +87,6 @@ def prepare_data(
     Y_test.to_csv(Y_test_output.path, index=False)
     X_val.to_csv(X_val_output.path, index=False)
     Y_val.to_csv(Y_val_output.path, index=False)
-
 
 @dsl.component(
     base_image='python:3.9',
@@ -374,15 +363,14 @@ def choose_model(
         result_string += f'{model_name:17} : {acc}\n'
     print(result_string)
 
-
     # Write the result to a file
     with open(result.path, 'w') as f:
         f.write(result_string)
 @dsl.pipeline(
-    name='Stroke Prediction Pipeline',
-    description='Using Kubeflow pipeline to train and evaluate a Stroke prediction model'
+    name='Diabete Prediction Pipeline',
+    description='Using Kubeflow pipeline to train and evaluate a Diabete prediction model'
 )
-def Stroke_prediction_pipeline():
+def Diabete_prediction_pipeline():
     # Load data
     load_data_task = load_data()
 
@@ -451,4 +439,4 @@ def Stroke_prediction_pipeline():
     # The pipeline doesn't need to return anything explicitly now
 
 if __name__ == '__main__':
-    kfp.compiler.Compiler().compile(Stroke_prediction_pipeline, 'Stroke_prediction_pipeline.yaml')
+    kfp.compiler.Compiler().compile(Diabete_prediction_pipeline, 'Diabete_prediction_pipeline.yaml')

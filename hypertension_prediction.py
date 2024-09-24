@@ -81,7 +81,7 @@ def train_model_LogisticRegression(
     X_test: Input[Artifact], 
     Y_test: Input[Artifact], 
     model: Output[Artifact],
-    accuracy: Output[Artifact]
+    file: Output[Artifact]
 ):
     import pandas as pd
     from sklearn.linear_model import LogisticRegression
@@ -107,7 +107,7 @@ def train_model_LogisticRegression(
     # Save the model
     joblib.dump(lr_model, model.path)
     # Save the accuracy
-    jsonFile = open(accuracy.path,'w')
+    jsonFile = open(file.path,'w')
     data = {}
     data['accuracy'] = lr_accuracy
     data['model_path'] = model.path
@@ -124,7 +124,7 @@ def train_model_xgboost(
     X_test: Input[Artifact], 
     Y_test: Input[Artifact], 
     model: Output[Artifact],
-    accuracy: Output[Artifact]
+    file: Output[Artifact]
 ):
     import pandas as pd
     import xgboost as xgb
@@ -165,7 +165,7 @@ def train_model_xgboost(
     joblib.dump(xgb_model, model.path)
 
      # Save the accuracy
-    jsonFile = open(accuracy.path,'w')
+    jsonFile = open(file.path,'w')
     data = {}
     data['accuracy'] = xgb_accuracy
     data['model_path'] = model.path
@@ -222,7 +222,7 @@ def train_model_RandomForest(
     X_test: Input[Artifact], 
     Y_test: Input[Artifact], 
     model: Output[Artifact],
-    accuracy: Output[Artifact]
+    file: Output[Artifact]
 ):
     import pandas as pd
     from sklearn.metrics import accuracy_score
@@ -246,7 +246,7 @@ def train_model_RandomForest(
     joblib.dump(rfc, model.path)
 
      # Save the accuracy
-    jsonFile = open(accuracy.path,'w')
+    jsonFile = open(file.path,'w')
     data = {}
     data['accuracy'] = rf_accuracy
     data['model_path'] = model.path
@@ -254,17 +254,58 @@ def train_model_RandomForest(
 
 @dsl.component(
     base_image='python:3.9',
-    packages_to_install=['joblib==1.4.2', 'scikit-learn==1.5.1', 'xgboost==2.0.3']
+    packages_to_install=['pandas==2.2.2', 'scikit-learn==1.5.1', 'joblib==1.4.2']
+)
+def train_model_KNN(
+    X_train: Input[Artifact], 
+    Y_train: Input[Artifact],
+    X_val: Input[Artifact], 
+    Y_val: Input[Artifact],
+    X_test: Input[Artifact], 
+    Y_test: Input[Artifact], 
+    model: Output[Artifact],
+    file: Output[Artifact]
+):
+    import pandas as pd
+    from sklearn.neighbors import KNeighborsClassifier
+    import joblib
+    import json
+
+    X_train = pd.read_csv(X_train.path)
+    Y_train = pd.read_csv(Y_train.path)
+    X_val = pd.read_csv(X_val.path)
+    Y_val = pd.read_csv(Y_val.path)
+    X_test = pd.read_csv(X_test.path)
+    Y_test = pd.read_csv(Y_test.path)
+
+    knc = KNeighborsClassifier(n_neighbors=3)
+    knc.fit(X_train,Y_train.values.ravel())
+    knn_accuracy = knc.score(X_test,Y_test)
+    # Save the model
+    joblib.dump(knc, model.path)
+
+     # Save the accuracy
+    jsonFile = open(file.path,'w')
+    data = {}
+    data['accuracy'] = knn_accuracy
+    data['model_path'] = model.path
+    json.dump(data, jsonFile, indent=2)
+
+@dsl.component(
+    base_image='python:3.9',
+    packages_to_install=['joblib==1.4.2', 'scikit-learn==1.5.1', 'xgboost==2.0.3']# 
 )
 def choose_model(
     LogisticRegression_model: Input[Artifact],
     XGBoost_model: Input[Artifact],
     # SVM_model: Input[Artifact],
     RandomForest_model: Input[Artifact],
+    KNN_model: Input[Artifact],
     lr_file: Input[Artifact],
     xgb_file: Input[Artifact],
     # svm_accuracy: Input[Artifact],
     rf_file: Input[Artifact],
+    knn_file: Input[Artifact],
     final_model: Output[Model],
     result: Output[Artifact]
 ) -> None:
@@ -275,7 +316,8 @@ def choose_model(
     models = {
         'LogisticRegression': lr_file,
         'XGBoost': xgb_file,
-        'RandomForest': rf_file
+        'RandomForest': rf_file,
+        'KNN': knn_file
     }
 
     accuracy = {}
@@ -297,7 +339,11 @@ def choose_model(
 
     # Prepare result string
     result_string = f'Best Model is {best_model_name} : {accuracy[best_model_name]}'
+    result_string += f'\nAccuracy:\n'
+    for model_name, acc in accuracy.items():
+        result_string += f'{model_name:17} : {acc}\n'
     print(result_string)
+
 
     # Write the result to a file
     with open(result.path, 'w') as f:
@@ -306,7 +352,7 @@ def choose_model(
     name='Hypertension Prediction Pipeline',
     description='Using Kubeflow pipeline to train and evaluate a Hypertension prediction model'
 )
-def Hypertension_prediction_pipeline():
+def hypertension_prediction_pipeline():
     # Load data
     load_data_task = load_data()
 
@@ -350,17 +396,29 @@ def Hypertension_prediction_pipeline():
         Y_test=prepare_data_task.outputs['Y_test_output']
     )
 
+    train_model_KNN_task = train_model_KNN(
+        X_train=prepare_data_task.outputs['X_train_output'], 
+        Y_train=prepare_data_task.outputs['Y_train_output'],
+        X_val=prepare_data_task.outputs['X_val_output'],
+        Y_val=prepare_data_task.outputs['Y_val_output'],
+        X_test=prepare_data_task.outputs['X_test_output'], 
+        Y_test=prepare_data_task.outputs['Y_test_output']
+    )
 
     choose_model_task = choose_model(
         LogisticRegression_model=train_model_LogisticRegression_task.outputs['model'],
         XGBoost_model=train_model_xgboost_task.outputs['model'],
         # SVM_model=train_model_svm_task.outputs['model'],
         RandomForest_model=train_model_RandomForest_task.outputs['model'],
-        lr_file=train_model_LogisticRegression_task.outputs['accuracy'],
-        xgb_file=train_model_xgboost_task.outputs['accuracy'],
-        # svm_accuracy=train_model_svm_task.outputs['accuracy'],
-        rf_file=train_model_RandomForest_task.outputs['accuracy']
+        KNN_model=train_model_KNN_task.outputs['model'],
+        lr_file=train_model_LogisticRegression_task.outputs['file'],
+        xgb_file=train_model_xgboost_task.outputs['file'],
+        # svm_file=train_model_svm_task.outputs['file'],
+        rf_file=train_model_RandomForest_task.outputs['file'],
+        knn_file=train_model_KNN_task.outputs['file']
     )
+    
+    # The pipeline doesn't need to return anything explicitly now
 
 if __name__ == '__main__':
-    kfp.compiler.Compiler().compile(Hypertension_prediction_pipeline, 'Hypertension_prediction_pipeline.yaml')
+    kfp.compiler.Compiler().compile(hypertension_prediction_pipeline, 'Hypertension_prediction_pipeline.yaml')
