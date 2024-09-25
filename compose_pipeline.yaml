@@ -1,0 +1,1406 @@
+# PIPELINE DEFINITION
+# Name: compose
+# Description: Compose of kubeflow, katib and spark
+# Inputs:
+#    params_json_file_path: str [Default: '/mnt/params/params.json']
+#    params_pvc_name: str [Default: 'params-pvc']
+# Outputs:
+#    parse-input-json-knn_input_metrics: system.Metrics
+#    parse-input-json-lr_input_metrics: system.Metrics
+#    parse-input-json-random_forest_input_metrics: system.Metrics
+#    parse-input-json-xgboost_input_metrics: system.Metrics
+#    run-knn-katib-experiment-best_params_metrics: system.Metrics
+#    run-lr-katib-experiment-best_params_metrics: system.Metrics
+#    run-random-forest-katib-experiment-best_params_metrics: system.Metrics
+#    run-xgboost-katib-experiment-best_params_metrics: system.Metrics
+components:
+  comp-load-file-from-nas-to-minio:
+    executorLabel: exec-load-file-from-nas-to-minio
+    inputDefinitions:
+      parameters:
+        x_test_input_path:
+          parameterType: STRING
+        x_train_input_path:
+          parameterType: STRING
+        y_test_input_path:
+          parameterType: STRING
+        y_train_input_path:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        x_test_output:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        x_train_output:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        y_test_output:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        y_train_output:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-parse-input-json:
+    executorLabel: exec-parse-input-json
+    inputDefinitions:
+      parameters:
+        json_file_path:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        knn_input_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+        lr_input_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+        random_forest_input_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+        xgboost_input_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+  comp-run-knn-katib-experiment:
+    executorLabel: exec-run-knn-katib-experiment
+    inputDefinitions:
+      artifacts:
+        input_params_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        best_params_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+  comp-run-knn-train:
+    executorLabel: exec-run-knn-train
+    inputDefinitions:
+      artifacts:
+        best_params_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+        x_test:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        x_train:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        y_test:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        y_train:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        file:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+  comp-run-lr-katib-experiment:
+    executorLabel: exec-run-lr-katib-experiment
+    inputDefinitions:
+      artifacts:
+        input_params_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        best_params_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+  comp-run-lr-train:
+    executorLabel: exec-run-lr-train
+    inputDefinitions:
+      artifacts:
+        best_params_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+        x_test:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        x_train:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        y_test:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        y_train:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        file:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+  comp-run-random-forest-katib-experiment:
+    executorLabel: exec-run-random-forest-katib-experiment
+    inputDefinitions:
+      artifacts:
+        input_params_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        best_params_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+  comp-run-random-forest-train:
+    executorLabel: exec-run-random-forest-train
+    inputDefinitions:
+      artifacts:
+        best_params_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+        x_test:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        x_train:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        y_test:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        y_train:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        file:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+  comp-run-xgboost-katib-experiment:
+    executorLabel: exec-run-xgboost-katib-experiment
+    inputDefinitions:
+      artifacts:
+        input_params_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        best_params_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+  comp-run-xgboost-train:
+    executorLabel: exec-run-xgboost-train
+    inputDefinitions:
+      artifacts:
+        best_params_metrics:
+          artifactType:
+            schemaTitle: system.Metrics
+            schemaVersion: 0.0.1
+        x_test:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        x_train:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        y_test:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+        y_train:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        file:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-load-file-from-nas-to-minio:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - load_file_from_nas_to_minio
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' &&\
+          \ \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef load_file_from_nas_to_minio(\n    x_train_input_path: str, \n\
+          \    x_test_input_path: str, \n    y_train_input_path: str, \n    y_test_input_path:\
+          \ str, \n    x_train_output: Output[Dataset], \n    x_test_output: Output[Dataset],\
+          \ \n    y_train_output: Output[Dataset], \n    y_test_output: Output[Dataset]\n\
+          ):\n    import pandas as pd\n\n    df = pd.read_csv(x_train_input_path)\n\
+          \    df.to_csv(x_train_output.path, index=False)\n\n    df = pd.read_csv(x_test_input_path)\n\
+          \    df.to_csv(x_test_output.path, index=False)\n\n    df = pd.read_csv(y_train_input_path)\n\
+          \    df.to_csv(y_train_output.path, index=False)\n\n    df = pd.read_csv(y_test_input_path)\n\
+          \    df.to_csv(y_test_output.path, index=False)\n\n"
+        image: python:3.10-slim
+    exec-parse-input-json:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - parse_input_json
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef parse_input_json(\n    json_file_path: str, \n    xgboost_input_metrics:\
+          \ Output[Metrics], \n    random_forest_input_metrics: Output[Metrics], \n\
+          \    knn_input_metrics: Output[Metrics],\n    lr_input_metrics: Output[Metrics]\n\
+          ):\n    import json\n\n    def log_metric(metrics: Metrics, input_dict:\
+          \ dict):\n        for key in input_dict:\n            if key == \"method\"\
+          :\n                continue\n            else:\n                metrics.log_metric(key,\
+          \ input_dict.get(key))\n\n    with open(file=json_file_path, mode='r', encoding='utf8')\
+          \ as file:\n        input_dict_arr: list[dict] = json.load(file)\n\n   \
+          \ for input_dict in input_dict_arr:\n        if input_dict[\"method\"] ==\
+          \ \"xgboost\":\n            log_metric(xgboost_input_metrics, input_dict)\n\
+          \        elif input_dict[\"method\"] == \"random_forest\":\n           \
+          \ log_metric(random_forest_input_metrics, input_dict)\n        elif input_dict[\"\
+          method\"] == \"knn\":\n            log_metric(knn_input_metrics, input_dict)\n\
+          \        elif input_dict[\"method\"] == \"lr\":\n            log_metric(lr_input_metrics,\
+          \ input_dict)\n        else:\n            continue\n\n"
+        image: python:3.10-slim
+    exec-run-knn-katib-experiment:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - run_knn_katib_experiment
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'kubeflow-katib==0.17.0'\
+          \ && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef run_knn_katib_experiment(\n    input_params_metrics: Input[Metrics],\
+          \ \n    best_params_metrics: Output[Metrics]\n):\n    from kubeflow.katib\
+          \ import KatibClient\n    from kubernetes.client import V1ObjectMeta\n \
+          \   from kubeflow.katib import V1beta1Experiment\n    from kubeflow.katib\
+          \ import V1beta1AlgorithmSpec\n    from kubeflow.katib import V1beta1ObjectiveSpec\n\
+          \    from kubeflow.katib import V1beta1FeasibleSpace\n    from kubeflow.katib\
+          \ import V1beta1ExperimentSpec\n    from kubeflow.katib import V1beta1ObjectiveSpec\n\
+          \    from kubeflow.katib import V1beta1ParameterSpec\n    from kubeflow.katib\
+          \ import V1beta1TrialTemplate\n    from kubeflow.katib import V1beta1TrialParameterSpec\n\
+          \n    from datetime import datetime, timezone, timedelta\n\n    dt_str =\
+          \ datetime.now(timezone(timedelta(hours=8))).strftime(\"%-Y-%m-%d-%H-%M-%S\"\
+          )\n\n    experiment_name = \"knn-\" + dt_str.replace(\"_\", \"-\")\n   \
+          \ experiment_namespace = input_params_metrics.metadata.get(\"experiment_namespace\"\
+          )\n\n    if experiment_name is None or experiment_namespace is None:\n \
+          \       raise ValueError(\"Both experiment_name and experiment namespace\
+          \ needs to be a string!\")\n\n    metadata = V1ObjectMeta(\n        name=experiment_name,\
+          \ \n        namespace=experiment_namespace\n    )\n\n    algorithm_spec\
+          \ = V1beta1AlgorithmSpec(\n        algorithm_name=\"random\"\n    )\n\n\
+          \    objective_spec = V1beta1ObjectiveSpec(\n        type=\"maximize\",\n\
+          \        goal= 0.99,\n        objective_metric_name=\"accuracy\",\n    )\n\
+          \n    n_neighbors_min = input_params_metrics.metadata.get(\"n_neighbors_min\"\
+          )\n    n_neighbors_max = input_params_metrics.metadata.get(\"n_neighbors_max\"\
+          )\n    n_neighbors_step = input_params_metrics.metadata.get(\"n_neighbors_step\"\
+          )\n\n    if n_neighbors_min is None or n_neighbors_max is None or n_neighbors_step\
+          \ is None:\n        raise ValueError(\"All n_neighbors_min, n_neighbors_max\
+          \ and n_neighbors_step cannot be null!\")\n\n    try:\n        n_neighbors_min\
+          \ = int(n_neighbors_min)\n        n_neighbors_max = int(n_neighbors_max)\n\
+          \        n_neighbors_step = int(n_neighbors_step)\n    except ValueError:\n\
+          \        raise ValueError(\"All n_neighbors_min, n_neighbors_max and n_neighbors_step\
+          \ needs to be a int!\")\n\n    if n_neighbors_min % 2 != 1 or n_neighbors_max\
+          \ % 2 != 1 or n_neighbors_step % 2 != 0:\n        raise ValueError(\"N neighbors\
+          \ needs to be an odd number!\")\n\n    parameters = [\n        V1beta1ParameterSpec(\n\
+          \            name=\"nn\",\n            parameter_type=\"int\",\n       \
+          \     feasible_space=V1beta1FeasibleSpace(\n                min=str(n_neighbors_min),\n\
+          \                max=str(n_neighbors_max), \n                step=str(n_neighbors_step)\n\
+          \            )\n        )\n    ]\n\n    docker_image_name = input_params_metrics.metadata.get(\"\
+          docker_image_name\")\n    if docker_image_name is None:\n        raise ValueError(\"\
+          Docker image name cannot be null!\")\n\n    random_state = input_params_metrics.metadata.get(\"\
+          random_state\")\n    if random_state is None:\n        random_state = 42\n\
+          \    else:\n        try:\n            random_state = int(random_state)\n\
+          \        except ValueError:\n            raise ValueError(\"Random state\
+          \ needs to be an int!\")\n\n    x_train_path = input_params_metrics.metadata.get(\"\
+          x_train_path\")\n    x_test_path = input_params_metrics.metadata.get(\"\
+          x_test_path\")\n    y_train_path = input_params_metrics.metadata.get(\"\
+          y_train_path\")\n    y_test_path = input_params_metrics.metadata.get(\"\
+          y_test_path\")\n\n    train_container = {\n        \"name\": \"training-container\"\
+          ,\n        \"image\": f\"docker.io/{docker_image_name}\",\n        \"command\"\
+          : [\n            \"python3\",\n            \"/opt/knn/train.py\",\n    \
+          \        \"--nn=${trialParameters.nNeighbors}\",\n            f\"--rs={random_state}\"\
+          ,\n            f\"--x_train_path={x_train_path}\",\n            f\"--x_test_path={x_test_path}\"\
+          ,\n            f\"--y_train_path={y_train_path}\",\n            f\"--y_test_path={y_test_path}\"\
+          ,\n            f\"--save_model=false\",\n            f\"--model_folder_path=models\"\
+          \n        ]\n    }\n\n    template_spec = {\n        \"containers\": [\n\
+          \            train_container\n        ],\n        \"restartPolicy\": \"\
+          Never\"\n    }\n\n    volumes = []\n    volumeMounts = []\n\n    datasets_from_pvc\
+          \ = input_params_metrics.metadata.get(\"datasets_from_pvc\")\n    datasets_pvc_name\
+          \ = input_params_metrics.metadata.get(\"datasets_pvc_name\")\n    datasets_pvc_mount_path\
+          \ = input_params_metrics.metadata.get(\"datasets_pvc_mount_path\")\n\n \
+          \   if datasets_from_pvc is True:\n        if datasets_pvc_name is None\
+          \ or datasets_pvc_mount_path is None:\n            raise ValueError(\"Both\
+          \ datasets_pvc_name and datasets_pvc_mount_path cannot be null\")\n\n  \
+          \      volumes.append({\n            \"name\": \"datasets\", \n        \
+          \    \"persistentVolumeClaim\": {\n                \"claimName\": datasets_pvc_name\n\
+          \            }\n        })\n        volumeMounts.append({\n            \"\
+          name\": \"datasets\", \n            \"mountPath\": datasets_pvc_mount_path\n\
+          \        })\n\n    '''\n    if save_model is True:\n        volumes.append({\n\
+          \            \"name\": \"models\", \n            \"persistentVolumeClaim\"\
+          : {\n                \"claimName\": models_pvc_name\n            }\n   \
+          \     })\n        volumeMounts.append({\n            \"name\": \"models\"\
+          , \n            \"mountPath\": \"/opt/rfc/models\"\n        })\n\n    if\
+          \ datasets_from_pvc is True or save_model is True:\n        train_container[\"\
+          volumeMounts\"] = volumeMounts\n        template_spec[\"volumes\"] = volumes\n\
+          \    '''\n\n    trial_spec={\n        \"apiVersion\": \"batch/v1\",\n  \
+          \      \"kind\": \"Job\",\n        \"spec\": {\n            \"template\"\
+          : {\n                \"metadata\": {\n                    \"annotations\"\
+          : {\n                        \"sidecar.istio.io/inject\": \"false\"\n  \
+          \                  }\n                },\n                \"spec\": template_spec\n\
+          \            }\n        }\n    }\n\n    trial_template=V1beta1TrialTemplate(\n\
+          \        primary_container_name=\"training-container\",\n        trial_parameters=[\n\
+          \            V1beta1TrialParameterSpec(\n                name=\"nNeighbors\"\
+          ,\n                description=\"N neighbors for the training model\",\n\
+          \                reference=\"nn\"\n            )\n        ],\n        trial_spec=trial_spec,\n\
+          \        retain=True\n    )\n\n    max_trial_counts = input_params_metrics.metadata.get(\"\
+          max_trial_counts\")\n    max_failed_trial_counts = input_params_metrics.metadata.get(\"\
+          max_failed_trial_counts\")\n    parallel_trial_counts = input_params_metrics.metadata.get(\"\
+          parallel_trial_counts\")\n\n    if max_failed_trial_counts is None or max_failed_trial_counts\
+          \ is None or parallel_trial_counts is None:\n        raise ValueError(\"\
+          All max_trial_counts, max_failed_trial_counts and parallel_trial_counts\
+          \ cannot be null!\")\n\n    try:\n        max_trial_counts = int(max_trial_counts)\n\
+          \        max_failed_trial_counts = int(max_failed_trial_counts)\n      \
+          \  parallel_trial_counts = int(parallel_trial_counts)\n    except ValueError:\n\
+          \        raise ValueError(\"All max_trial_counts, max_failed_trial_counts\
+          \ and needs to be an int!\")\n\n    experiment = V1beta1Experiment(\n  \
+          \      api_version=\"kubeflow.org/v1beta1\",\n        kind=\"Experiment\"\
+          ,\n        metadata=metadata,\n        spec=V1beta1ExperimentSpec(\n   \
+          \         max_trial_count=max_trial_counts,\n            parallel_trial_count=parallel_trial_counts,\n\
+          \            max_failed_trial_count=max_failed_trial_counts,\n         \
+          \   algorithm=algorithm_spec,\n            objective=objective_spec,\n \
+          \           parameters=parameters,\n            trial_template=trial_template,\n\
+          \        )\n    )\n\n    client_namespace = input_params_metrics.metadata.get(\"\
+          client_namespace\")\n    if client_namespace is None:\n        raise ValueError(\"\
+          Client namespace cannot be null!\")\n\n    client = KatibClient(namespace=client_namespace)\n\
+          \    client.create_experiment(experiment=experiment)\n    client.wait_for_experiment_condition(name=experiment_name,\
+          \ namespace=experiment_namespace, timeout=3600)\n\n    result = client.get_optimal_hyperparameters(name=experiment_name,\
+          \ namespace=experiment_namespace).to_dict()\n\n    best_params_list = result[\"\
+          parameter_assignments\"]\n\n    for params in best_params_list:\n      \
+          \  name = params[\"name\"]\n        value = params[\"value\"]\n\n      \
+          \  if name == \"nn\":\n            value = int(value)\n\n        best_params_metrics.log_metric(metric=name,\
+          \ value=value)\n\n"
+        image: python:3.10-slim
+    exec-run-knn-train:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - run_knn_train
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'scikit-learn'\
+          \ 'joblib' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef run_knn_train(\n    best_params_metrics: Input[Metrics], \n \
+          \   x_train: Input[Dataset], \n    x_test: Input[Dataset], \n    y_train:\
+          \ Input[Dataset], \n    y_test: Input[Dataset], \n    model: Output[Model],\
+          \ \n    file: Output[Artifact]\n):\n    import pandas as pd\n    import\
+          \ joblib\n    import json\n\n    from sklearn.metrics import accuracy_score\n\
+          \    from sklearn.neighbors import KNeighborsClassifier\n\n    n_neighbors\
+          \ = best_params_metrics.metadata.get(\"nn\")\n\n    x_train_df = pd.read_csv(x_train.path)\n\
+          \    y_train_df = pd.read_csv(y_train.path)\n    x_test_df = pd.read_csv(x_test.path)\n\
+          \    y_test_df = pd.read_csv(y_test.path)\n\n    knn_model = KNeighborsClassifier(\n\
+          \        n_neighbors=n_neighbors\n    )\n    knn_model.fit(x_train_df.values,\
+          \ y_train_df.values.ravel())\n\n    y_pred = knn_model.predict(x_test_df.values)\n\
+          \    accuracy = accuracy_score(y_test_df.values, y_pred)\n\n    # Save the\
+          \ model\n    joblib.dump(model, model.path)\n\n    data = {}\n    data['accuracy']\
+          \ = accuracy\n    data['model_path'] = model.path\n\n    with open(file=file.path,\
+          \ mode='w', encoding='utf8') as file:\n        json.dump(data, file, indent=4)\n\
+          \n"
+        image: python:3.10-slim
+    exec-run-lr-katib-experiment:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - run_lr_katib_experiment
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'kubeflow-katib==0.17.0'\
+          \ && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef run_lr_katib_experiment(\n    input_params_metrics: Input[Metrics],\
+          \ \n    best_params_metrics: Output[Metrics]\n):\n    from kubeflow.katib\
+          \ import KatibClient\n    from kubernetes.client import V1ObjectMeta\n \
+          \   from kubeflow.katib import V1beta1Experiment\n    from kubeflow.katib\
+          \ import V1beta1AlgorithmSpec\n    from kubeflow.katib import V1beta1ObjectiveSpec\n\
+          \    from kubeflow.katib import V1beta1FeasibleSpace\n    from kubeflow.katib\
+          \ import V1beta1ExperimentSpec\n    from kubeflow.katib import V1beta1ObjectiveSpec\n\
+          \    from kubeflow.katib import V1beta1ParameterSpec\n    from kubeflow.katib\
+          \ import V1beta1TrialTemplate\n    from kubeflow.katib import V1beta1TrialParameterSpec\n\
+          \n    from datetime import datetime, timezone, timedelta\n\n    dt_str =\
+          \ datetime.now(timezone(timedelta(hours=8))).strftime(\"%-Y-%m-%d-%H-%M-%S\"\
+          )\n\n    experiment_name = \"lr-\" + dt_str.replace(\"_\", \"-\")\n    experiment_namespace\
+          \ = input_params_metrics.metadata.get(\"experiment_namespace\")\n\n    if\
+          \ experiment_name is None or experiment_namespace is None:\n        raise\
+          \ ValueError(\"Both experiment_name and experiment namespace needs to be\
+          \ a string!\")\n\n    metadata = V1ObjectMeta(\n        name=experiment_name,\
+          \ \n        namespace=experiment_namespace\n    )\n\n    algorithm_spec\
+          \ = V1beta1AlgorithmSpec(\n        algorithm_name=\"random\"\n    )\n\n\
+          \    objective_spec = V1beta1ObjectiveSpec(\n        type=\"maximize\",\n\
+          \        goal= 0.99,\n        objective_metric_name=\"accuracy\",\n    )\n\
+          \n    iterators_min = input_params_metrics.metadata.get(\"iterators_min\"\
+          )\n    iterators_max = input_params_metrics.metadata.get(\"iterators_max\"\
+          )\n    iterators_step = input_params_metrics.metadata.get(\"iterators_step\"\
+          )\n\n    if iterators_min is None or iterators_max is None or iterators_step\
+          \ is None:\n        raise ValueError(\"All iterators_min, iterators_max\
+          \ and iterators_step cannot be null!\")\n\n    try:\n        iterators_min\
+          \ = int(iterators_min)\n        iterators_max = int(iterators_max)\n   \
+          \     iterators_step = int(iterators_step)\n    except ValueError:\n   \
+          \     raise ValueError(\"All iterators_min, iterators_max and iterators_step\
+          \ needs to be a int!\")\n\n    parameters = [\n        V1beta1ParameterSpec(\n\
+          \            name=\"it\",\n            parameter_type=\"int\",\n       \
+          \     feasible_space=V1beta1FeasibleSpace(\n                min=str(iterators_min),\n\
+          \                max=str(iterators_max), \n                step=str(iterators_step)\n\
+          \            )\n        )\n    ]\n\n    docker_image_name = input_params_metrics.metadata.get(\"\
+          docker_image_name\")\n    if docker_image_name is None:\n        raise ValueError(\"\
+          Docker image name cannot be null!\")\n\n    random_state = input_params_metrics.metadata.get(\"\
+          random_state\")\n    if random_state is None:\n        random_state = 42\n\
+          \    else:\n        try:\n            random_state = int(random_state)\n\
+          \        except ValueError:\n            raise ValueError(\"Random state\
+          \ needs to be an int!\")\n\n    x_train_path = input_params_metrics.metadata.get(\"\
+          x_train_path\")\n    x_test_path = input_params_metrics.metadata.get(\"\
+          x_test_path\")\n    y_train_path = input_params_metrics.metadata.get(\"\
+          y_train_path\")\n    y_test_path = input_params_metrics.metadata.get(\"\
+          y_test_path\")\n\n    train_container = {\n        \"name\": \"training-container\"\
+          ,\n        \"image\": f\"docker.io/{docker_image_name}\",\n        \"command\"\
+          : [\n            \"python3\",\n            \"/opt/knn/train.py\",\n    \
+          \        \"--lr=${trialParameters.iterators}\",\n            f\"--rs={random_state}\"\
+          ,\n            f\"--x_train_path={x_train_path}\",\n            f\"--x_test_path={x_test_path}\"\
+          ,\n            f\"--y_train_path={y_train_path}\",\n            f\"--y_test_path={y_test_path}\"\
+          ,\n            f\"--save_model=false\",\n            f\"--model_folder_path=models\"\
+          \n        ]\n    }\n\n    template_spec = {\n        \"containers\": [\n\
+          \            train_container\n        ],\n        \"restartPolicy\": \"\
+          Never\"\n    }\n\n    volumes = []\n    volumeMounts = []\n\n    datasets_from_pvc\
+          \ = input_params_metrics.metadata.get(\"datasets_from_pvc\")\n    datasets_pvc_name\
+          \ = input_params_metrics.metadata.get(\"datasets_pvc_name\")\n    datasets_pvc_mount_path\
+          \ = input_params_metrics.metadata.get(\"datasets_pvc_mount_path\")\n\n \
+          \   if datasets_from_pvc is True:\n        if datasets_pvc_name is None\
+          \ or datasets_pvc_mount_path is None:\n            raise ValueError(\"Both\
+          \ datasets_pvc_name and datasets_pvc_mount_path cannot be null\")\n\n  \
+          \      volumes.append({\n            \"name\": \"datasets\", \n        \
+          \    \"persistentVolumeClaim\": {\n                \"claimName\": datasets_pvc_name\n\
+          \            }\n        })\n        volumeMounts.append({\n            \"\
+          name\": \"datasets\", \n            \"mountPath\": datasets_pvc_mount_path\n\
+          \        })\n\n    '''\n    if save_model is True:\n        volumes.append({\n\
+          \            \"name\": \"models\", \n            \"persistentVolumeClaim\"\
+          : {\n                \"claimName\": models_pvc_name\n            }\n   \
+          \     })\n        volumeMounts.append({\n            \"name\": \"models\"\
+          , \n            \"mountPath\": \"/opt/rfc/models\"\n        })\n\n    if\
+          \ datasets_from_pvc is True or save_model is True:\n        train_container[\"\
+          volumeMounts\"] = volumeMounts\n        template_spec[\"volumes\"] = volumes\n\
+          \    '''\n\n    trial_spec={\n        \"apiVersion\": \"batch/v1\",\n  \
+          \      \"kind\": \"Job\",\n        \"spec\": {\n            \"template\"\
+          : {\n                \"metadata\": {\n                    \"annotations\"\
+          : {\n                        \"sidecar.istio.io/inject\": \"false\"\n  \
+          \                  }\n                },\n                \"spec\": template_spec\n\
+          \            }\n        }\n    }\n\n    trial_template=V1beta1TrialTemplate(\n\
+          \        primary_container_name=\"training-container\",\n        trial_parameters=[\n\
+          \            V1beta1TrialParameterSpec(\n                name=\"iterators\"\
+          ,\n                description=\"iterators for the training model\",\n \
+          \               reference=\"it\"\n            )\n        ],\n        trial_spec=trial_spec,\n\
+          \        retain=True\n    )\n\n    max_trial_counts = input_params_metrics.metadata.get(\"\
+          max_trial_counts\")\n    max_failed_trial_counts = input_params_metrics.metadata.get(\"\
+          max_failed_trial_counts\")\n    parallel_trial_counts = input_params_metrics.metadata.get(\"\
+          parallel_trial_counts\")\n\n    if max_failed_trial_counts is None or max_failed_trial_counts\
+          \ is None or parallel_trial_counts is None:\n        raise ValueError(\"\
+          All max_trial_counts, max_failed_trial_counts and parallel_trial_counts\
+          \ cannot be null!\")\n\n    try:\n        max_trial_counts = int(max_trial_counts)\n\
+          \        max_failed_trial_counts = int(max_failed_trial_counts)\n      \
+          \  parallel_trial_counts = int(parallel_trial_counts)\n    except ValueError:\n\
+          \        raise ValueError(\"All max_trial_counts, max_failed_trial_counts\
+          \ and needs to be an int!\")\n\n    experiment = V1beta1Experiment(\n  \
+          \      api_version=\"kubeflow.org/v1beta1\",\n        kind=\"Experiment\"\
+          ,\n        metadata=metadata,\n        spec=V1beta1ExperimentSpec(\n   \
+          \         max_trial_count=max_trial_counts,\n            parallel_trial_count=parallel_trial_counts,\n\
+          \            max_failed_trial_count=max_failed_trial_counts,\n         \
+          \   algorithm=algorithm_spec,\n            objective=objective_spec,\n \
+          \           parameters=parameters,\n            trial_template=trial_template,\n\
+          \        )\n    )\n\n    client_namespace = input_params_metrics.metadata.get(\"\
+          client_namespace\")\n    if client_namespace is None:\n        raise ValueError(\"\
+          Client namespace cannot be null!\")\n\n    client = KatibClient(namespace=client_namespace)\n\
+          \    client.create_experiment(experiment=experiment)\n    client.wait_for_experiment_condition(name=experiment_name,\
+          \ namespace=experiment_namespace, timeout=3600)\n\n    result = client.get_optimal_hyperparameters(name=experiment_name,\
+          \ namespace=experiment_namespace).to_dict()\n\n    best_params_list = result[\"\
+          parameter_assignments\"]\n\n    for params in best_params_list:\n      \
+          \  name = params[\"name\"]\n        value = params[\"value\"]\n\n      \
+          \  if name == \"it\":\n            value = int(value)\n\n        best_params_metrics.log_metric(metric=name,\
+          \ value=value)\n\n"
+        image: python:3.10-slim
+    exec-run-lr-train:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - run_lr_train
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'scikit-learn'\
+          \ 'joblib' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef run_lr_train(\n    best_params_metrics: Input[Metrics], \n  \
+          \  x_train: Input[Dataset], \n    x_test: Input[Dataset], \n    y_train:\
+          \ Input[Dataset], \n    y_test: Input[Dataset], \n    model: Output[Model],\
+          \ \n    file: Output[Artifact]\n):\n    import pandas as pd\n    import\
+          \ joblib\n    import json\n\n    from sklearn.metrics import accuracy_score\n\
+          \    from sklearn.linear_model import LogisticRegression\n\n    iterators\
+          \ = best_params_metrics.metadata.get(\"it\")\n\n    x_train_df = pd.read_csv(x_train.path)\n\
+          \    y_train_df = pd.read_csv(y_train.path)\n    x_test_df = pd.read_csv(x_test.path)\n\
+          \    y_test_df = pd.read_csv(y_test.path)\n\n    lr_model = LogisticRegression(\n\
+          \        random_state=0, \n        max_iter=iterators\n    )\n    lr_model.fit(x_train_df.values,\
+          \ y_train_df.values.ravel())\n\n    y_pred = lr_model.predict(x_test_df.values)\n\
+          \    accuracy = accuracy_score(y_test_df.values, y_pred)\n\n    # Save the\
+          \ model\n    joblib.dump(model, model.path)\n\n    data = {}\n    data['accuracy']\
+          \ = accuracy\n    data['model_path'] = model.path\n\n    with open(file=file.path,\
+          \ mode='w', encoding='utf8') as file:\n        json.dump(data, file, indent=4)\n\
+          \n"
+        image: python:3.10-slim
+    exec-run-random-forest-katib-experiment:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - run_random_forest_katib_experiment
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'kubeflow-katib==0.17.0'\
+          \ && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef run_random_forest_katib_experiment(\n    input_params_metrics:\
+          \ Input[Metrics], \n    best_params_metrics: Output[Metrics]\n):\n    from\
+          \ kubeflow.katib import KatibClient\n    from kubernetes.client import V1ObjectMeta\n\
+          \    from kubeflow.katib import V1beta1Experiment\n    from kubeflow.katib\
+          \ import V1beta1AlgorithmSpec\n    from kubeflow.katib import V1beta1ObjectiveSpec\n\
+          \    from kubeflow.katib import V1beta1FeasibleSpace\n    from kubeflow.katib\
+          \ import V1beta1ExperimentSpec\n    from kubeflow.katib import V1beta1ObjectiveSpec\n\
+          \    from kubeflow.katib import V1beta1ParameterSpec\n    from kubeflow.katib\
+          \ import V1beta1TrialTemplate\n    from kubeflow.katib import V1beta1TrialParameterSpec\n\
+          \n    from datetime import datetime, timezone, timedelta\n\n    dt_str =\
+          \ datetime.now(timezone(timedelta(hours=8))).strftime(\"%-Y-%m-%d-%H-%M-%S\"\
+          )\n\n    experiment_name = \"random-forest-\" + dt_str.replace(\"_\", \"\
+          -\")\n    experiment_namespace = input_params_metrics.metadata.get(\"experiment_namespace\"\
+          )\n\n    if experiment_name is None or experiment_namespace is None:\n \
+          \       raise ValueError(\"Both experiment_name and experiment namespace\
+          \ needs to be a string!\")\n\n    metadata = V1ObjectMeta(\n        name=experiment_name,\
+          \ \n        namespace=experiment_namespace\n    )\n\n    algorithm_spec\
+          \ = V1beta1AlgorithmSpec(\n        algorithm_name=\"random\"\n    )\n\n\
+          \    objective_spec = V1beta1ObjectiveSpec(\n        type=\"maximize\",\n\
+          \        goal= 0.99,\n        objective_metric_name=\"accuracy\",\n    )\n\
+          \n    n_estimators_min = input_params_metrics.metadata.get(\"n_estimators_min\"\
+          )\n    n_estimators_max = input_params_metrics.metadata.get(\"n_estimators_max\"\
+          )\n    n_estimators_step = input_params_metrics.metadata.get(\"n_estimators_step\"\
+          )\n\n    if n_estimators_min is None or n_estimators_max is None or n_estimators_step\
+          \ is None:\n        raise ValueError(\"All n_estimators_min, n_estimators_max\
+          \ and n_estimators_step cannot be null!\")\n\n    try:\n        n_estimators_min\
+          \ = int(n_estimators_min)\n        n_estimators_max = int(n_estimators_max)\n\
+          \        n_estimators_step = int(n_estimators_step)\n    except ValueError:\n\
+          \        raise ValueError(\"All n_estimators_min, n_estimators_max and n_estimators_step\
+          \ needs to be a float!\")\n\n    parameters = [\n        V1beta1ParameterSpec(\n\
+          \            name=\"ne\",\n            parameter_type=\"int\",\n       \
+          \     feasible_space=V1beta1FeasibleSpace(\n                min=str(n_estimators_min),\n\
+          \                max=str(n_estimators_max), \n                step=str(n_estimators_step)\n\
+          \            ),\n        )\n    ]\n\n    docker_image_name = input_params_metrics.metadata.get(\"\
+          docker_image_name\")\n    if docker_image_name is None:\n        raise ValueError(\"\
+          Docker image name cannot be null!\")\n\n    random_state = input_params_metrics.metadata.get(\"\
+          random_state\")\n    if random_state is None:\n        random_state = 42\n\
+          \    else:\n        try:\n            random_state = int(random_state)\n\
+          \        except ValueError:\n            raise ValueError(\"Random state\
+          \ needs to be an int!\")\n\n    x_train_path = input_params_metrics.metadata.get(\"\
+          x_train_path\")\n    x_test_path = input_params_metrics.metadata.get(\"\
+          x_test_path\")\n    y_train_path = input_params_metrics.metadata.get(\"\
+          y_train_path\")\n    y_test_path = input_params_metrics.metadata.get(\"\
+          y_test_path\")\n\n    train_container = {\n        \"name\": \"training-container\"\
+          ,\n        \"image\": f\"docker.io/{docker_image_name}\",\n        \"command\"\
+          : [\n            \"python3\",\n            \"/opt/rfc/train.py\",\n    \
+          \        \"--ne=${trialParameters.nEstimators}\",\n            f\"--rs={random_state}\"\
+          ,\n            f\"--x_train_path={x_train_path}\",\n            f\"--x_test_path={x_test_path}\"\
+          ,\n            f\"--y_train_path={y_train_path}\",\n            f\"--y_test_path={y_test_path}\"\
+          ,\n            f\"--save_model=false\",\n            f\"--model_folder_path=models\"\
+          \n        ]\n    }\n\n    template_spec = {\n        \"containers\": [\n\
+          \            train_container\n        ],\n        \"restartPolicy\": \"\
+          Never\"\n    }\n\n    volumes = []\n    volumeMounts = []\n\n    datasets_from_pvc\
+          \ = input_params_metrics.metadata.get(\"datasets_from_pvc\")\n    datasets_pvc_name\
+          \ = input_params_metrics.metadata.get(\"datasets_pvc_name\")\n    datasets_pvc_mount_path\
+          \ = input_params_metrics.metadata.get(\"datasets_pvc_mount_path\")\n\n \
+          \   if datasets_from_pvc is True:\n        if datasets_pvc_name is None\
+          \ or datasets_pvc_mount_path is None:\n            raise ValueError(\"Both\
+          \ datasets_pvc_name and datasets_pvc_mount_path cannot be null\")\n\n  \
+          \      volumes.append({\n            \"name\": \"datasets\", \n        \
+          \    \"persistentVolumeClaim\": {\n                \"claimName\": datasets_pvc_name\n\
+          \            }\n        })\n        volumeMounts.append({\n            \"\
+          name\": \"datasets\", \n            \"mountPath\": datasets_pvc_mount_path\n\
+          \        })\n\n    '''\n    if save_model is True:\n        volumes.append({\n\
+          \            \"name\": \"models\", \n            \"persistentVolumeClaim\"\
+          : {\n                \"claimName\": models_pvc_name\n            }\n   \
+          \     })\n        volumeMounts.append({\n            \"name\": \"models\"\
+          , \n            \"mountPath\": \"/opt/rfc/models\"\n        })\n\n    if\
+          \ datasets_from_pvc is True or save_model is True:\n        train_container[\"\
+          volumeMounts\"] = volumeMounts\n        template_spec[\"volumes\"] = volumes\n\
+          \    '''\n\n    trial_spec={\n        \"apiVersion\": \"batch/v1\",\n  \
+          \      \"kind\": \"Job\",\n        \"spec\": {\n            \"template\"\
+          : {\n                \"metadata\": {\n                    \"annotations\"\
+          : {\n                        \"sidecar.istio.io/inject\": \"false\"\n  \
+          \                  }\n                },\n                \"spec\": template_spec\n\
+          \            }\n        }\n    }\n\n    trial_template=V1beta1TrialTemplate(\n\
+          \        primary_container_name=\"training-container\",\n        trial_parameters=[\n\
+          \            V1beta1TrialParameterSpec(\n                name=\"nEstimators\"\
+          ,\n                description=\"N estimators for the training model\",\n\
+          \                reference=\"ne\"\n            )\n        ],\n        trial_spec=trial_spec,\n\
+          \        retain=True\n    )\n\n    max_trial_counts = input_params_metrics.metadata.get(\"\
+          max_trial_counts\")\n    max_failed_trial_counts = input_params_metrics.metadata.get(\"\
+          max_failed_trial_counts\")\n    parallel_trial_counts = input_params_metrics.metadata.get(\"\
+          parallel_trial_counts\")\n\n    if max_failed_trial_counts is None or max_failed_trial_counts\
+          \ is None or parallel_trial_counts is None:\n        raise ValueError(\"\
+          All max_trial_counts, max_failed_trial_counts and parallel_trial_counts\
+          \ cannot be null!\")\n\n    try:\n        max_trial_counts = int(max_trial_counts)\n\
+          \        max_failed_trial_counts = int(max_failed_trial_counts)\n      \
+          \  parallel_trial_counts = int(parallel_trial_counts)\n    except ValueError:\n\
+          \        raise ValueError(\"All max_trial_counts, max_failed_trial_counts\
+          \ and needs to be an int!\")\n\n    experiment = V1beta1Experiment(\n  \
+          \      api_version=\"kubeflow.org/v1beta1\",\n        kind=\"Experiment\"\
+          ,\n        metadata=metadata,\n        spec=V1beta1ExperimentSpec(\n   \
+          \         max_trial_count=max_trial_counts,\n            parallel_trial_count=parallel_trial_counts,\n\
+          \            max_failed_trial_count=max_failed_trial_counts,\n         \
+          \   algorithm=algorithm_spec,\n            objective=objective_spec,\n \
+          \           parameters=parameters,\n            trial_template=trial_template,\n\
+          \        )\n    )\n\n    client_namespace = input_params_metrics.metadata.get(\"\
+          client_namespace\")\n    if client_namespace is None:\n        raise ValueError(\"\
+          Client namespace cannot be null!\")\n\n    client = KatibClient(namespace=client_namespace)\n\
+          \    client.create_experiment(experiment=experiment)\n    client.wait_for_experiment_condition(name=experiment_name,\
+          \ namespace=experiment_namespace, timeout=3600)\n\n    result = client.get_optimal_hyperparameters(name=experiment_name,\
+          \ namespace=experiment_namespace).to_dict()\n\n    best_params_list = result[\"\
+          parameter_assignments\"]\n\n    for params in best_params_list:\n      \
+          \  name = params[\"name\"]\n        value = params[\"value\"]\n\n      \
+          \  if name == \"ne\":\n            value = int(value)\n\n        best_params_metrics.log_metric(metric=name,\
+          \ value=value)\n\n"
+        image: python:3.10-slim
+    exec-run-random-forest-train:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - run_random_forest_train
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'scikit-learn'\
+          \ 'joblib' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef run_random_forest_train(\n    best_params_metrics: Input[Metrics],\
+          \ \n    x_train: Input[Dataset], \n    x_test: Input[Dataset], \n    y_train:\
+          \ Input[Dataset], \n    y_test: Input[Dataset], \n    model: Output[Model],\
+          \ \n    file: Output[Artifact]\n):\n    import pandas as pd\n    import\
+          \ joblib\n    import json\n\n    from sklearn.metrics import accuracy_score\n\
+          \    from sklearn.ensemble import RandomForestClassifier\n\n    n_estimators\
+          \ = best_params_metrics.metadata.get(\"ne\")\n\n    x_train_df = pd.read_csv(x_train.path)\n\
+          \    y_train_df = pd.read_csv(y_train.path)\n    x_test_df = pd.read_csv(x_test.path)\n\
+          \    y_test_df = pd.read_csv(y_test.path)\n\n    rfc = RandomForestClassifier(n_estimators=n_estimators)\n\
+          \    rfc.fit(x_train_df.values, y_train_df.values.ravel())\n\n    rfc.predict(x_test_df.values)\n\
+          \    rfc_accuracy = rfc.score(x_test_df.values, y_test_df.values)\n\n  \
+          \  # Save the model\n    joblib.dump(rfc, model.path)\n\n    data = {}\n\
+          \    data['accuracy'] = rfc_accuracy\n    data['model_path'] = model.path\n\
+          \n    with open(file=file.path, mode='w', encoding='utf8') as file:\n  \
+          \      json.dump(data, file, indent=4)\n\n"
+        image: python:3.10-slim
+    exec-run-xgboost-katib-experiment:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - run_xgboost_katib_experiment
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'kubeflow-katib==0.17.0'\
+          \ && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef run_xgboost_katib_experiment(\n    input_params_metrics: Input[Metrics],\
+          \ \n    best_params_metrics: Output[Metrics]\n):\n    from kubeflow.katib\
+          \ import KatibClient\n    from kubernetes.client import V1ObjectMeta\n \
+          \   from kubeflow.katib import V1beta1Experiment\n    from kubeflow.katib\
+          \ import V1beta1AlgorithmSpec\n    from kubeflow.katib import V1beta1ObjectiveSpec\n\
+          \    from kubeflow.katib import V1beta1FeasibleSpace\n    from kubeflow.katib\
+          \ import V1beta1ExperimentSpec\n    from kubeflow.katib import V1beta1ObjectiveSpec\n\
+          \    from kubeflow.katib import V1beta1ParameterSpec\n    from kubeflow.katib\
+          \ import V1beta1TrialTemplate\n    from kubeflow.katib import V1beta1TrialParameterSpec\n\
+          \n    from datetime import datetime, timezone, timedelta\n\n    dt_str =\
+          \ datetime.now(timezone(timedelta(hours=8))).strftime(\"%-Y-%m-%d-%H-%M-%S\"\
+          )\n\n    experiment_name = \"xgboost-\" + dt_str.replace(\"_\", \"-\")\n\
+          \    experiment_namespace = input_params_metrics.metadata.get(\"experiment_namespace\"\
+          )\n\n    if experiment_name is None or experiment_namespace is None:\n \
+          \       raise ValueError(\"Both experiment_name and experiment namespace\
+          \ needs to be a string!\")\n\n    metadata = V1ObjectMeta(\n        name=experiment_name,\
+          \ \n        namespace=experiment_namespace\n    )\n\n    algorithm_spec\
+          \ = V1beta1AlgorithmSpec(\n        algorithm_name=\"random\"\n    )\n\n\
+          \    objective_spec = V1beta1ObjectiveSpec(\n        type=\"maximize\",\n\
+          \        goal= 0.99,\n        objective_metric_name=\"accuracy\",\n    )\n\
+          \n    learning_rate_min = input_params_metrics.metadata.get(\"learning_rate_min\"\
+          )\n    learning_rate_max = input_params_metrics.metadata.get(\"learning_rate_max\"\
+          )\n    learning_rate_step = input_params_metrics.metadata.get(\"learning_rate_step\"\
+          )\n\n    if learning_rate_min is None or learning_rate_max is None or learning_rate_step\
+          \ is None:\n        raise ValueError(\"All learning_rate_min, learning_rate_max\
+          \ and learning_rate_step cannot be null!\")\n\n    try:\n        learning_rate_min\
+          \ = float(learning_rate_min)\n        learning_rate_max = float(learning_rate_max)\n\
+          \        learning_rate_step = float(learning_rate_step)\n    except ValueError:\n\
+          \        raise ValueError(\"All learning_rate_min, learning_rate_max and\
+          \ learning_rate_step needs to be a float!\")\n\n    n_estimators_min = input_params_metrics.metadata.get(\"\
+          n_estimators_min\")\n    n_estimators_max = input_params_metrics.metadata.get(\"\
+          n_estimators_max\")\n    n_estimators_step = input_params_metrics.metadata.get(\"\
+          n_estimators_step\")\n\n    if n_estimators_min is None or n_estimators_max\
+          \ is None or n_estimators_step is None:\n        raise ValueError(\"All\
+          \ n_estimators_min, n_estimators_max and n_estimators_step cannot be null!\"\
+          )\n\n    try:\n        n_estimators_min = int(n_estimators_min)\n      \
+          \  n_estimators_max = int(n_estimators_max)\n        n_estimators_step =\
+          \ int(n_estimators_step)\n    except ValueError:\n        raise ValueError(\"\
+          All n_estimators_min, n_estimators_max and n_estimators_step needs to be\
+          \ a float!\")\n\n    parameters = [\n        V1beta1ParameterSpec(\n   \
+          \         name=\"lr\",\n            parameter_type=\"double\",\n       \
+          \     feasible_space=V1beta1FeasibleSpace(\n                min=str(learning_rate_min),\n\
+          \                max=str(learning_rate_max), \n                step=str(learning_rate_step)\n\
+          \            ),\n        ), \n        V1beta1ParameterSpec(\n          \
+          \  name=\"ne\",\n            parameter_type=\"int\",\n            feasible_space=V1beta1FeasibleSpace(\n\
+          \                min=str(n_estimators_min),\n                max=str(n_estimators_max),\
+          \ \n                step=str(n_estimators_step)\n            ),\n      \
+          \  )\n    ]\n\n    docker_image_name = input_params_metrics.metadata.get(\"\
+          docker_image_name\")\n    if docker_image_name is None:\n        raise ValueError(\"\
+          Docker image name cannot be null!\")\n\n    random_state = input_params_metrics.metadata.get(\"\
+          random_state\")\n    if random_state is None:\n        random_state = 42\n\
+          \    else:\n        try:\n            random_state = int(random_state)\n\
+          \        except ValueError:\n            raise ValueError(\"Random state\
+          \ needs to be an int!\")\n\n    x_train_path = input_params_metrics.metadata.get(\"\
+          x_train_path\")\n    x_test_path = input_params_metrics.metadata.get(\"\
+          x_test_path\")\n    y_train_path = input_params_metrics.metadata.get(\"\
+          y_train_path\")\n    y_test_path = input_params_metrics.metadata.get(\"\
+          y_test_path\")\n\n    train_container = {\n        \"name\": \"training-container\"\
+          ,\n        \"image\": f\"docker.io/{docker_image_name}\",\n        \"command\"\
+          : [\n            \"python3\",\n            \"/opt/xgboost/train.py\",\n\
+          \            \"--lr=${trialParameters.learningRate}\",\n            \"--ne=${trialParameters.nEstimators}\"\
+          ,\n            f\"--rs={random_state}\",\n            f\"--esp=100000\"\
+          ,\n            f\"--booster=gbtree\",\n            f\"--x_train_path={x_train_path}\"\
+          ,\n            f\"--x_test_path={x_test_path}\",\n            f\"--y_train_path={y_train_path}\"\
+          ,\n            f\"--y_test_path={y_test_path}\",\n            f\"--save_model=false\"\
+          ,\n            f\"--model_folder_path=models\"\n        ]\n    }\n\n   \
+          \ template_spec = {\n        \"containers\": [\n            train_container\n\
+          \        ],\n        \"restartPolicy\": \"Never\"\n    }\n\n    volumes\
+          \ = []\n    volumeMounts = []\n\n    datasets_from_pvc = input_params_metrics.metadata.get(\"\
+          datasets_from_pvc\")\n    datasets_pvc_name = input_params_metrics.metadata.get(\"\
+          datasets_pvc_name\")\n    datasets_pvc_mount_path = input_params_metrics.metadata.get(\"\
+          datasets_pvc_mount_path\")\n\n    if datasets_from_pvc is True:\n      \
+          \  if datasets_pvc_name is None or datasets_pvc_mount_path is None:\n  \
+          \          raise ValueError(\"Both datasets_pvc_name and datasets_pvc_mount_path\
+          \ cannot be null\")\n\n        volumes.append({\n            \"name\": \"\
+          datasets\", \n            \"persistentVolumeClaim\": {\n               \
+          \ \"claimName\": datasets_pvc_name\n            }\n        })\n        volumeMounts.append({\n\
+          \            \"name\": \"datasets\", \n            \"mountPath\": datasets_pvc_mount_path\n\
+          \        })\n\n    '''\n    if save_model is True:\n        volumes.append({\n\
+          \            \"name\": \"models\", \n            \"persistentVolumeClaim\"\
+          : {\n                \"claimName\": models_pvc_name\n            }\n   \
+          \     })\n        volumeMounts.append({\n            \"name\": \"models\"\
+          , \n            \"mountPath\": \"/opt/xgboost/models\"\n        })\n\n \
+          \   if datasets_from_pvc is True or save_model is True:\n        train_container[\"\
+          volumeMounts\"] = volumeMounts\n        template_spec[\"volumes\"] = volumes\n\
+          \    '''\n\n    trial_spec={\n        \"apiVersion\": \"batch/v1\",\n  \
+          \      \"kind\": \"Job\",\n        \"spec\": {\n            \"template\"\
+          : {\n                \"metadata\": {\n                    \"annotations\"\
+          : {\n                        \"sidecar.istio.io/inject\": \"false\"\n  \
+          \                  }\n                },\n                \"spec\": template_spec\n\
+          \            }\n        }\n    }\n\n    trial_template=V1beta1TrialTemplate(\n\
+          \        primary_container_name=\"training-container\",\n        trial_parameters=[\n\
+          \            V1beta1TrialParameterSpec(\n                name=\"learningRate\"\
+          ,\n                description=\"Learning rate for the training model\"\
+          ,\n                reference=\"lr\"\n            ), \n            V1beta1TrialParameterSpec(\n\
+          \                name=\"nEstimators\",\n                description=\"N\
+          \ estimators for the training model\",\n                reference=\"ne\"\
+          \n            )\n        ],\n        trial_spec=trial_spec,\n        retain=True\n\
+          \    )\n\n    max_trial_counts = input_params_metrics.metadata.get(\"max_trial_counts\"\
+          )\n    max_failed_trial_counts = input_params_metrics.metadata.get(\"max_failed_trial_counts\"\
+          )\n    parallel_trial_counts = input_params_metrics.metadata.get(\"parallel_trial_counts\"\
+          )\n\n    if max_failed_trial_counts is None or max_failed_trial_counts is\
+          \ None or parallel_trial_counts is None:\n        raise ValueError(\"All\
+          \ max_trial_counts, max_failed_trial_counts and parallel_trial_counts cannot\
+          \ be null!\")\n\n    try:\n        max_trial_counts = int(max_trial_counts)\n\
+          \        max_failed_trial_counts = int(max_failed_trial_counts)\n      \
+          \  parallel_trial_counts = int(parallel_trial_counts)\n    except ValueError:\n\
+          \        raise ValueError(\"All max_trial_counts, max_failed_trial_counts\
+          \ and needs to be an int!\")\n\n    experiment = V1beta1Experiment(\n  \
+          \      api_version=\"kubeflow.org/v1beta1\",\n        kind=\"Experiment\"\
+          ,\n        metadata=metadata,\n        spec=V1beta1ExperimentSpec(\n   \
+          \         max_trial_count=max_trial_counts,\n            parallel_trial_count=parallel_trial_counts,\n\
+          \            max_failed_trial_count=max_failed_trial_counts,\n         \
+          \   algorithm=algorithm_spec,\n            objective=objective_spec,\n \
+          \           parameters=parameters,\n            trial_template=trial_template,\n\
+          \        )\n    )\n\n    client_namespace = input_params_metrics.metadata.get(\"\
+          client_namespace\")\n    if client_namespace is None:\n        raise ValueError(\"\
+          Client namespace cannot be null!\")\n\n    client = KatibClient(namespace=client_namespace)\n\
+          \    client.create_experiment(experiment=experiment)\n    client.wait_for_experiment_condition(name=experiment_name,\
+          \ namespace=experiment_namespace, timeout=3600)\n\n    result = client.get_optimal_hyperparameters(name=experiment_name,\
+          \ namespace=experiment_namespace).to_dict()\n\n    best_params_list = result[\"\
+          parameter_assignments\"]\n\n    for params in best_params_list:\n      \
+          \  name = params[\"name\"]\n        value = params[\"value\"]\n\n      \
+          \  if name == \"lr\":\n            value = float(value)\n        elif name\
+          \ == \"ne\":\n            value = int(value)\n\n        best_params_metrics.log_metric(metric=name,\
+          \ value=value)\n\n"
+        image: python:3.10-slim
+    exec-run-xgboost-train:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - run_xgboost_train
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'pandas' 'xgboost'\
+          \ 'scikit-learn' 'joblib' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef run_xgboost_train(\n    best_params_metrics: Input[Metrics],\
+          \ \n    x_train: Input[Dataset], \n    x_test: Input[Dataset], \n    y_train:\
+          \ Input[Dataset], \n    y_test: Input[Dataset], \n    model: Output[Model],\
+          \ \n    file: Output[Artifact]\n):\n    import pandas as pd\n    import\
+          \ xgboost as xgb\n    import joblib\n    import json\n\n    from sklearn.metrics\
+          \ import accuracy_score\n\n    learning_rate = best_params_metrics.metadata.get(\"\
+          lr\")\n    n_estimators = best_params_metrics.metadata.get(\"ne\")\n\n \
+          \   x_train_df = pd.read_csv(x_train.path)\n    y_train_df = pd.read_csv(y_train.path)\n\
+          \    x_test_df = pd.read_csv(x_test.path)\n    y_test_df = pd.read_csv(y_test.path)\n\
+          \n    dtrain = xgb.DMatrix(x_train_df.values, label=y_train_df.values)\n\
+          \    dtest = xgb.DMatrix(x_test_df.values, label=y_test_df.values)\n\n \
+          \   scale_pos_weight = len(y_train_df[y_train_df == 0]) / len(y_train_df[y_train_df\
+          \ == 1])\n\n    param = {\n        'eta': learning_rate, \n        'objective':\
+          \ 'binary:logistic',\n        'eval_metric': 'logloss',\n        'scale_pos_weight':\
+          \ scale_pos_weight\n    }\n\n    evallist = [(dtest, 'test')]\n    num_round\
+          \ = n_estimators\n\n    xgb_model = xgb.train(\n        param, \n      \
+          \  dtrain, \n        num_round, \n        evallist, \n        early_stopping_rounds=10\n\
+          \    )\n\n    preds = xgb_model.predict(dtest)\n\n    predictions = [round(value)\
+          \ for value in preds]\n    xgb_accuracy = accuracy_score(y_test_df.values,\
+          \ predictions)\n    print('XGBoost Test accuracy:', xgb_accuracy)\n\n  \
+          \  # Save the model\n    joblib.dump(xgb_model, model.path)\n\n     # Save\
+          \ the accuracy\n    data = {}\n    data['accuracy'] = xgb_accuracy\n   \
+          \ data['model_path'] = model.path\n\n    with open(file=file.path, mode='w',\
+          \ encoding='utf8') as file:\n        json.dump(data, file, indent=4)\n\n"
+        image: python:3.10-slim
+pipelineInfo:
+  description: Compose of kubeflow, katib and spark
+  name: compose
+root:
+  dag:
+    outputs:
+      artifacts:
+        parse-input-json-knn_input_metrics:
+          artifactSelectors:
+          - outputArtifactKey: knn_input_metrics
+            producerSubtask: parse-input-json
+        parse-input-json-lr_input_metrics:
+          artifactSelectors:
+          - outputArtifactKey: lr_input_metrics
+            producerSubtask: parse-input-json
+        parse-input-json-random_forest_input_metrics:
+          artifactSelectors:
+          - outputArtifactKey: random_forest_input_metrics
+            producerSubtask: parse-input-json
+        parse-input-json-xgboost_input_metrics:
+          artifactSelectors:
+          - outputArtifactKey: xgboost_input_metrics
+            producerSubtask: parse-input-json
+        run-knn-katib-experiment-best_params_metrics:
+          artifactSelectors:
+          - outputArtifactKey: best_params_metrics
+            producerSubtask: run-knn-katib-experiment
+        run-lr-katib-experiment-best_params_metrics:
+          artifactSelectors:
+          - outputArtifactKey: best_params_metrics
+            producerSubtask: run-lr-katib-experiment
+        run-random-forest-katib-experiment-best_params_metrics:
+          artifactSelectors:
+          - outputArtifactKey: best_params_metrics
+            producerSubtask: run-random-forest-katib-experiment
+        run-xgboost-katib-experiment-best_params_metrics:
+          artifactSelectors:
+          - outputArtifactKey: best_params_metrics
+            producerSubtask: run-xgboost-katib-experiment
+    tasks:
+      load-file-from-nas-to-minio:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-load-file-from-nas-to-minio
+        inputs:
+          parameters:
+            x_test_input_path:
+              runtimeValue:
+                constant: /mnt/datasets/heart_disease/x_test.csv
+            x_train_input_path:
+              runtimeValue:
+                constant: /mnt/datasets/heart_disease/x_train.csv
+            y_test_input_path:
+              runtimeValue:
+                constant: /mnt/datasets/heart_disease/y_test.csv
+            y_train_input_path:
+              runtimeValue:
+                constant: /mnt/datasets/heart_disease/y_train.csv
+        taskInfo:
+          name: load-file-from-nas-to-minio
+      parse-input-json:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-parse-input-json
+        inputs:
+          parameters:
+            json_file_path:
+              componentInputParameter: params_json_file_path
+        taskInfo:
+          name: parse-input-json
+      run-knn-katib-experiment:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-run-knn-katib-experiment
+        dependentTasks:
+        - parse-input-json
+        inputs:
+          artifacts:
+            input_params_metrics:
+              taskOutputArtifact:
+                outputArtifactKey: knn_input_metrics
+                producerTask: parse-input-json
+        taskInfo:
+          name: run-knn-katib-experiment
+      run-knn-train:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-run-knn-train
+        dependentTasks:
+        - load-file-from-nas-to-minio
+        - run-knn-katib-experiment
+        inputs:
+          artifacts:
+            best_params_metrics:
+              taskOutputArtifact:
+                outputArtifactKey: best_params_metrics
+                producerTask: run-knn-katib-experiment
+            x_test:
+              taskOutputArtifact:
+                outputArtifactKey: x_test_output
+                producerTask: load-file-from-nas-to-minio
+            x_train:
+              taskOutputArtifact:
+                outputArtifactKey: x_train_output
+                producerTask: load-file-from-nas-to-minio
+            y_test:
+              taskOutputArtifact:
+                outputArtifactKey: y_test_output
+                producerTask: load-file-from-nas-to-minio
+            y_train:
+              taskOutputArtifact:
+                outputArtifactKey: y_train_output
+                producerTask: load-file-from-nas-to-minio
+        taskInfo:
+          name: run-knn-train
+      run-lr-katib-experiment:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-run-lr-katib-experiment
+        dependentTasks:
+        - parse-input-json
+        inputs:
+          artifacts:
+            input_params_metrics:
+              taskOutputArtifact:
+                outputArtifactKey: lr_input_metrics
+                producerTask: parse-input-json
+        taskInfo:
+          name: run-lr-katib-experiment
+      run-lr-train:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-run-lr-train
+        dependentTasks:
+        - load-file-from-nas-to-minio
+        - run-lr-katib-experiment
+        inputs:
+          artifacts:
+            best_params_metrics:
+              taskOutputArtifact:
+                outputArtifactKey: best_params_metrics
+                producerTask: run-lr-katib-experiment
+            x_test:
+              taskOutputArtifact:
+                outputArtifactKey: x_test_output
+                producerTask: load-file-from-nas-to-minio
+            x_train:
+              taskOutputArtifact:
+                outputArtifactKey: x_train_output
+                producerTask: load-file-from-nas-to-minio
+            y_test:
+              taskOutputArtifact:
+                outputArtifactKey: y_test_output
+                producerTask: load-file-from-nas-to-minio
+            y_train:
+              taskOutputArtifact:
+                outputArtifactKey: y_train_output
+                producerTask: load-file-from-nas-to-minio
+        taskInfo:
+          name: run-lr-train
+      run-random-forest-katib-experiment:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-run-random-forest-katib-experiment
+        dependentTasks:
+        - parse-input-json
+        inputs:
+          artifacts:
+            input_params_metrics:
+              taskOutputArtifact:
+                outputArtifactKey: random_forest_input_metrics
+                producerTask: parse-input-json
+        taskInfo:
+          name: run-random-forest-katib-experiment
+      run-random-forest-train:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-run-random-forest-train
+        dependentTasks:
+        - load-file-from-nas-to-minio
+        - run-random-forest-katib-experiment
+        inputs:
+          artifacts:
+            best_params_metrics:
+              taskOutputArtifact:
+                outputArtifactKey: best_params_metrics
+                producerTask: run-random-forest-katib-experiment
+            x_test:
+              taskOutputArtifact:
+                outputArtifactKey: x_test_output
+                producerTask: load-file-from-nas-to-minio
+            x_train:
+              taskOutputArtifact:
+                outputArtifactKey: x_train_output
+                producerTask: load-file-from-nas-to-minio
+            y_test:
+              taskOutputArtifact:
+                outputArtifactKey: y_test_output
+                producerTask: load-file-from-nas-to-minio
+            y_train:
+              taskOutputArtifact:
+                outputArtifactKey: y_train_output
+                producerTask: load-file-from-nas-to-minio
+        taskInfo:
+          name: run-random-forest-train
+      run-xgboost-katib-experiment:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-run-xgboost-katib-experiment
+        dependentTasks:
+        - parse-input-json
+        inputs:
+          artifacts:
+            input_params_metrics:
+              taskOutputArtifact:
+                outputArtifactKey: xgboost_input_metrics
+                producerTask: parse-input-json
+        taskInfo:
+          name: run-xgboost-katib-experiment
+      run-xgboost-train:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-run-xgboost-train
+        dependentTasks:
+        - load-file-from-nas-to-minio
+        - run-xgboost-katib-experiment
+        inputs:
+          artifacts:
+            best_params_metrics:
+              taskOutputArtifact:
+                outputArtifactKey: best_params_metrics
+                producerTask: run-xgboost-katib-experiment
+            x_test:
+              taskOutputArtifact:
+                outputArtifactKey: x_test_output
+                producerTask: load-file-from-nas-to-minio
+            x_train:
+              taskOutputArtifact:
+                outputArtifactKey: x_train_output
+                producerTask: load-file-from-nas-to-minio
+            y_test:
+              taskOutputArtifact:
+                outputArtifactKey: y_test_output
+                producerTask: load-file-from-nas-to-minio
+            y_train:
+              taskOutputArtifact:
+                outputArtifactKey: y_train_output
+                producerTask: load-file-from-nas-to-minio
+        taskInfo:
+          name: run-xgboost-train
+  inputDefinitions:
+    parameters:
+      params_json_file_path:
+        defaultValue: /mnt/params/params.json
+        isOptional: true
+        parameterType: STRING
+      params_pvc_name:
+        defaultValue: params-pvc
+        isOptional: true
+        parameterType: STRING
+  outputDefinitions:
+    artifacts:
+      parse-input-json-knn_input_metrics:
+        artifactType:
+          schemaTitle: system.Metrics
+          schemaVersion: 0.0.1
+      parse-input-json-lr_input_metrics:
+        artifactType:
+          schemaTitle: system.Metrics
+          schemaVersion: 0.0.1
+      parse-input-json-random_forest_input_metrics:
+        artifactType:
+          schemaTitle: system.Metrics
+          schemaVersion: 0.0.1
+      parse-input-json-xgboost_input_metrics:
+        artifactType:
+          schemaTitle: system.Metrics
+          schemaVersion: 0.0.1
+      run-knn-katib-experiment-best_params_metrics:
+        artifactType:
+          schemaTitle: system.Metrics
+          schemaVersion: 0.0.1
+      run-lr-katib-experiment-best_params_metrics:
+        artifactType:
+          schemaTitle: system.Metrics
+          schemaVersion: 0.0.1
+      run-random-forest-katib-experiment-best_params_metrics:
+        artifactType:
+          schemaTitle: system.Metrics
+          schemaVersion: 0.0.1
+      run-xgboost-katib-experiment-best_params_metrics:
+        artifactType:
+          schemaTitle: system.Metrics
+          schemaVersion: 0.0.1
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.8.0
+---
+platforms:
+  kubernetes:
+    deploymentSpec:
+      executors:
+        exec-load-file-from-nas-to-minio:
+          pvcMount:
+          - constant: datasets-pvc
+            mountPath: /mnt/datasets
+        exec-parse-input-json:
+          pvcMount:
+          - componentInputParameter: params_pvc_name
+            mountPath: /mnt/params
