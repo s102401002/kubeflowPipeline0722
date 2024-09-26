@@ -927,8 +927,8 @@ def run_lr_katib_experiment(
         "image": f"docker.io/{docker_image_name}",
         "command": [
             "python3",
-            "/opt/knn/train.py",
-            "--lr=${trialParameters.iterators}",
+            "/opt/lr/train.py",
+            "--it=${trialParameters.iterators}",
             f"--rs={random_state}",
             f"--x_train_path={x_train_path}",
             f"--x_test_path={x_test_path}",
@@ -978,7 +978,7 @@ def run_lr_katib_experiment(
         })
         volumeMounts.append({
             "name": "models", 
-            "mountPath": "/opt/rfc/models"
+            "mountPath": "/opt/lr/models"
         })
 
     if datasets_from_pvc is True or save_model is True:
@@ -1266,6 +1266,61 @@ def run_lr_train(
     with open(file=file.path, mode='w', encoding='utf8') as file:
         json.dump(data, file, indent=4)
 
+@dsl.component(
+    base_image='python:3.9',
+    packages_to_install=['joblib==1.4.2', 'scikit-learn==1.5.1', 'xgboost==2.0.3']# 
+)
+def choose_model(
+    LogisticRegression_model: Input[Artifact],
+    XGBoost_model: Input[Artifact],
+    RandomForest_model: Input[Artifact],
+    KNN_model: Input[Artifact],
+    lr_file: Input[Artifact],
+    xgb_file: Input[Artifact],
+    rf_file: Input[Artifact],
+    knn_file: Input[Artifact],
+    final_model: Output[Model],
+    result: Output[Artifact]
+) -> None:
+    import joblib
+    import json
+
+    # Define a dictionary to store model artifacts and their corresponding JSON files
+    models = {
+        'LogisticRegression': lr_file,
+        'XGBoost': xgb_file,
+        'RandomForest': rf_file,
+        'KNN': knn_file
+    }
+
+    accuracy = {}
+    model_paths = {}
+
+    # Read accuracies and model paths
+    for model_name, json_file in models.items():
+        with open(json_file.path, 'r') as f:
+            data = json.load(f)
+        accuracy[model_name] = data['accuracy']
+        model_paths[model_name] = data['model_path']
+
+    # Find the best model
+    best_model_name = max(accuracy, key=accuracy.get)
+    best_model = joblib.load(model_paths[best_model_name])
+    
+    # Save the best model
+    joblib.dump(best_model, final_model.path)
+
+    # Prepare result string
+    result_string = f'Best Model is {best_model_name} : {accuracy[best_model_name]}'
+    result_string += f'\nAccuracy:\n'
+    for model_name, acc in accuracy.items():
+        result_string += f'{model_name:17} : {acc}\n'
+    print(result_string)
+
+    # Write the result to a file
+    with open(result.path, 'w') as f:
+        f.write(result_string)
+
 @dsl.pipeline(
     name="compose", 
     description="Compose of kubeflow, katib and spark"
@@ -1308,6 +1363,7 @@ def compose_pipeline(
     knn_katib_experiment_task = run_knn_katib_experiment(
         input_params_metrics=parse_input_json_task.outputs["knn_input_metrics"]
     )
+
     lr_katib_experiment_task = run_lr_katib_experiment(
         input_params_metrics=parse_input_json_task.outputs["lr_input_metrics"]
     )
@@ -1342,6 +1398,17 @@ def compose_pipeline(
         x_test=load_datasets_task.outputs['x_test_output'], 
         y_train=load_datasets_task.outputs['y_train_output'], 
         y_test=load_datasets_task.outputs['y_test_output']
+    )
+
+    choose_model_task = choose_model(
+        LogisticRegression_model=run_lr_train.outputs['model'],
+        XGBoost_model=run_xgboost_train.outputs['model'],
+        RandomForest_model=run_random_forest_train.outputs['model'],
+        KNN_model=run_knn_train.outputs['model'],
+        lr_file=run_lr_train.outputs['file'],
+        xgb_file=run_xgboost_train.outputs['file'],
+        rf_file=run_random_forest_train.outputs['file'],
+        knn_file=run_knn_train.outputs['file']
     )
 
 if __name__ == "__main__":
