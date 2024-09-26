@@ -14,6 +14,52 @@
 #    run-random-forest-katib-experiment-best_params_metrics: system.Metrics
 #    run-xgboost-katib-experiment-best_params_metrics: system.Metrics
 components:
+  comp-choose-model:
+    executorLabel: exec-choose-model
+    inputDefinitions:
+      artifacts:
+        KNN_model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+        LogisticRegression_model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+        RandomForest_model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+        XGBoost_model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+        knn_file:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        lr_file:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        rf_file:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        xgb_file:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        final_model:
+          artifactType:
+            schemaTitle: system.Model
+            schemaVersion: 0.0.1
+        result:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
   comp-load-file-from-nas-to-minio:
     executorLabel: exec-load-file-from-nas-to-minio
     inputDefinitions:
@@ -262,6 +308,56 @@ components:
             schemaVersion: 0.0.1
 deploymentSpec:
   executors:
+    exec-choose-model:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - choose_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.8.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"'  &&\
+          \  python3 -m pip install --quiet --no-warn-script-location 'joblib==1.4.2'\
+          \ 'scikit-learn==1.5.1' 'xgboost==2.0.3' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef choose_model(\n    LogisticRegression_model: Input[Model],\n\
+          \    XGBoost_model: Input[Model],\n    RandomForest_model: Input[Model],\n\
+          \    KNN_model: Input[Model],\n    lr_file: Input[Artifact],\n    xgb_file:\
+          \ Input[Artifact],\n    rf_file: Input[Artifact],\n    knn_file: Input[Artifact],\n\
+          \    final_model: Output[Model],\n    result: Output[Artifact]\n) -> None:\n\
+          \    import joblib\n    import json\n\n    # Define a dictionary to store\
+          \ model artifacts and their corresponding JSON files\n    models = {\n \
+          \       'LogisticRegression': lr_file,\n        'XGBoost': xgb_file,\n \
+          \       'RandomForest': rf_file,\n        'KNN': knn_file\n    }\n\n   \
+          \ accuracy = {}\n    model_paths = {}\n\n    # Read accuracies and model\
+          \ paths\n    for model_name, json_file in models.items():\n        with\
+          \ open(json_file.path, 'r') as f:\n            data = json.load(f)\n   \
+          \     accuracy[model_name] = data['accuracy']\n        model_paths[model_name]\
+          \ = data['model_path']\n\n    # Find the best model\n    best_model_name\
+          \ = max(accuracy, key=accuracy.get)\n    best_model = joblib.load(model_paths[best_model_name])\n\
+          \n    # Save the best model\n    joblib.dump(best_model, final_model.path)\n\
+          \n    # Prepare result string\n    result_string = f'Best Model is {best_model_name}\
+          \ : {accuracy[best_model_name]}'\n    result_string += f'\\nAccuracy:\\\
+          n'\n    for model_name, acc in accuracy.items():\n        result_string\
+          \ += f'{model_name:17} : {acc}\\n'\n    print(result_string)\n\n    # Write\
+          \ the result to a file\n    with open(result.path, 'w') as f:\n        f.write(result_string)\n\
+          \n"
+        image: python:3.9
     exec-load-file-from-nas-to-minio:
       container:
         args:
@@ -594,8 +690,8 @@ deploymentSpec:
           y_train_path\")\n    y_test_path = input_params_metrics.metadata.get(\"\
           y_test_path\")\n\n    train_container = {\n        \"name\": \"training-container\"\
           ,\n        \"image\": f\"docker.io/{docker_image_name}\",\n        \"command\"\
-          : [\n            \"python3\",\n            \"/opt/knn/train.py\",\n    \
-          \        \"--lr=${trialParameters.iterators}\",\n            f\"--rs={random_state}\"\
+          : [\n            \"python3\",\n            \"/opt/lr/train.py\",\n     \
+          \       \"--it=${trialParameters.iterators}\",\n            f\"--rs={random_state}\"\
           ,\n            f\"--x_train_path={x_train_path}\",\n            f\"--x_test_path={x_test_path}\"\
           ,\n            f\"--y_train_path={y_train_path}\",\n            f\"--y_test_path={y_test_path}\"\
           ,\n            f\"--save_model=false\",\n            f\"--model_folder_path=models\"\
@@ -616,7 +712,7 @@ deploymentSpec:
           \            \"name\": \"models\", \n            \"persistentVolumeClaim\"\
           : {\n                \"claimName\": models_pvc_name\n            }\n   \
           \     })\n        volumeMounts.append({\n            \"name\": \"models\"\
-          , \n            \"mountPath\": \"/opt/rfc/models\"\n        })\n\n    if\
+          , \n            \"mountPath\": \"/opt/lr/models\"\n        })\n\n    if\
           \ datasets_from_pvc is True or save_model is True:\n        train_container[\"\
           volumeMounts\"] = volumeMounts\n        template_spec[\"volumes\"] = volumes\n\
           \    '''\n\n    trial_spec={\n        \"apiVersion\": \"batch/v1\",\n  \
@@ -1125,6 +1221,52 @@ root:
           - outputArtifactKey: best_params_metrics
             producerSubtask: run-xgboost-katib-experiment
     tasks:
+      choose-model:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-choose-model
+        dependentTasks:
+        - run-knn-train
+        - run-lr-train
+        - run-random-forest-train
+        - run-xgboost-train
+        inputs:
+          artifacts:
+            KNN_model:
+              taskOutputArtifact:
+                outputArtifactKey: model
+                producerTask: run-knn-train
+            LogisticRegression_model:
+              taskOutputArtifact:
+                outputArtifactKey: model
+                producerTask: run-lr-train
+            RandomForest_model:
+              taskOutputArtifact:
+                outputArtifactKey: model
+                producerTask: run-random-forest-train
+            XGBoost_model:
+              taskOutputArtifact:
+                outputArtifactKey: model
+                producerTask: run-xgboost-train
+            knn_file:
+              taskOutputArtifact:
+                outputArtifactKey: file
+                producerTask: run-knn-train
+            lr_file:
+              taskOutputArtifact:
+                outputArtifactKey: file
+                producerTask: run-lr-train
+            rf_file:
+              taskOutputArtifact:
+                outputArtifactKey: file
+                producerTask: run-random-forest-train
+            xgb_file:
+              taskOutputArtifact:
+                outputArtifactKey: file
+                producerTask: run-xgboost-train
+        taskInfo:
+          name: choose-model
       load-file-from-nas-to-minio:
         cachingOptions:
           enableCache: true

@@ -1,5 +1,5 @@
 from kfp import dsl, compiler, kubernetes
-from kfp.dsl import Input, Output, Metrics, Dataset, Model, Artifact, component, ContainerSpec
+from kfp.dsl import Input, Output, Metrics, Dataset, Model, Artifact, component, ContainerSpec,  OutputPath, InputPath
 
 
 @component(
@@ -1271,10 +1271,10 @@ def run_lr_train(
     packages_to_install=['joblib==1.4.2', 'scikit-learn==1.5.1', 'xgboost==2.0.3']# 
 )
 def choose_model(
-    LogisticRegression_model: Input[Artifact],
-    XGBoost_model: Input[Artifact],
-    RandomForest_model: Input[Artifact],
-    KNN_model: Input[Artifact],
+    LogisticRegression_model: Input[Model],
+    XGBoost_model: Input[Model],
+    RandomForest_model: Input[Model],
+    KNN_model: Input[Model],
     lr_file: Input[Artifact],
     xgb_file: Input[Artifact],
     rf_file: Input[Artifact],
@@ -1401,14 +1401,14 @@ def compose_pipeline(
     )
 
     choose_model_task = choose_model(
-        LogisticRegression_model=run_lr_train.outputs['model'],
-        XGBoost_model=run_xgboost_train.outputs['model'],
-        RandomForest_model=run_random_forest_train.outputs['model'],
-        KNN_model=run_knn_train.outputs['model'],
-        lr_file=run_lr_train.outputs['file'],
-        xgb_file=run_xgboost_train.outputs['file'],
-        rf_file=run_random_forest_train.outputs['file'],
-        knn_file=run_knn_train.outputs['file']
+        LogisticRegression_model=lr_train_task.outputs['model'],
+        XGBoost_model=xgboost_train_task.outputs['model'],
+        RandomForest_model=random_forest_train_task.outputs['model'],
+        KNN_model=knn_train_task.outputs['model'],
+        lr_file=lr_train_task.outputs['file'],
+        xgb_file=xgboost_train_task.outputs['file'],
+        rf_file=random_forest_train_task.outputs['file'],
+        knn_file=knn_train_task.outputs['file']
     )
 
 if __name__ == "__main__":
