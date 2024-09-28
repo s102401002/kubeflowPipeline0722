@@ -1280,7 +1280,7 @@ def choose_model(
     rf_file: Input[Artifact],
     knn_file: Input[Artifact],
     final_model: Output[Model],
-    result: Output[Artifact]
+    final_model_file: Output[Artifact]
 ) -> None:
     import joblib
     import json
@@ -1317,9 +1317,57 @@ def choose_model(
         result_string += f'{model_name:17} : {acc}\n'
     print(result_string)
 
-    # Write the result to a file
-    with open(result.path, 'w') as f:
-        f.write(result_string)
+    data = {}
+    data['accuracy'] = accuracy[best_model_name]
+    data['model_path'] = final_model.path
+
+    with open(file=final_model_file.path, mode='w', encoding='utf8') as file:
+        json.dump(data, file, indent=4)
+
+@dsl.component(
+    base_image='python:3.9',
+    packages_to_install=['joblib==1.4.2', 'scikit-learn==1.5.1', 'xgboost==2.0.3']
+)
+def change_model(
+    new_model: Input[Model],
+    new_model_file: Input[Artifact],
+    nas_path: str
+    # final_model: Output[Model],
+    # result: Output[Artifact]
+) -> None:
+    import joblib
+    import json
+    import os
+
+    existing_model_path = os.path.join(nas_path, 'best_model.joblib')
+    existing_model_file_path = os.path.join(nas_path, 'model_file.json')
+
+    if os.path.exists(existing_model_path) and os.path.exists(existing_model_file_path):
+        with open(existing_model_file_path, 'r') as f:
+            existing_accuracy = json.load(f)['accuracy']
+
+        with open(new_model_file.path, 'r') as f:
+            data = json.load(f)
+        new_model_accuracy = data['accuracy']
+
+        if new_model_accuracy > existing_accuracy:
+            joblib.dump(new_model, existing_model_path)
+            joblib.dump(new_model_file, existing_model_file_path)
+            result_message = f"Model updated. New accuracy: {new_model_accuracy}, Old accuracy: {existing_accuracy}"
+        else:
+            result_message = f"Existing model retained. Existing accuracy: {existing_accuracy}, New accuracy: {new_model_accuracy}"
+    else:
+        joblib.dump(new_model, existing_model_path)
+        joblib.dump(new_model_file, existing_model_file_path)
+        result_message = f"New model saved to NAS. Accuracy: {new_model_accuracy}"
+
+    print(result_message)
+    # joblib.dump(joblib.load(existing_model_path), final_model.path)
+
+    # with open(result.path, 'w') as f:
+    #     f.write(result_message)
+
+    
 
 @dsl.pipeline(
     name="compose", 
@@ -1409,6 +1457,12 @@ def compose_pipeline(
         xgb_file=xgboost_train_task.outputs['file'],
         rf_file=random_forest_train_task.outputs['file'],
         knn_file=knn_train_task.outputs['file']
+    )
+
+    change_model_task = change_model(
+        new_model=choose_model_task.outputs['final_model'],
+        new_model_file=choose_model_task.outputs['final_model_file'],
+        nas_path="/mnt/model-pvc"
     )
 
 if __name__ == "__main__":
