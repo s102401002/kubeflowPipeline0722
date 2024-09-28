@@ -1,5 +1,20 @@
-from kfp import dsl, compiler, kubernetes
+from kfp import dsl, compiler, kubernetes, components
 from kfp.dsl import Input, Output, Metrics, Dataset, Model, Artifact, component, ContainerSpec,  OutputPath, InputPath
+
+import json
+
+
+def get_spark_job_definition():
+    import yaml
+    import time
+    # Read manifest file
+    with open('spark-job-python-10kprocess.yaml', "r") as stream:
+        spark_job_manifest = yaml.safe_load(stream)
+
+    # Add epoch time in the job name
+    epoch = int(time.time())
+    spark_job_manifest["metadata"]["name"] = spark_job_manifest["metadata"]["name"].format(epoch=epoch)
+    return spark_job_manifest
 
 
 @component(
@@ -210,6 +225,8 @@ def run_xgboost_katib_experiment(
     datasets_from_pvc = input_params_metrics.metadata.get("datasets_from_pvc")
     datasets_pvc_name = input_params_metrics.metadata.get("datasets_pvc_name")
     datasets_pvc_mount_path = input_params_metrics.metadata.get("datasets_pvc_mount_path")
+
+    datasets_from_pvc = bool(datasets_from_pvc)
     
     if datasets_from_pvc is True:
         if datasets_pvc_name is None or datasets_pvc_mount_path is None:
@@ -243,6 +260,9 @@ def run_xgboost_katib_experiment(
         train_container["volumeMounts"] = volumeMounts
         template_spec["volumes"] = volumes
     '''
+    if datasets_from_pvc is True:
+        train_container["volumeMounts"] = volumeMounts
+        template_spec["volumes"] = volumes
 
     trial_spec={
         "apiVersion": "batch/v1",
@@ -461,6 +481,8 @@ def run_random_forest_katib_experiment(
     datasets_from_pvc = input_params_metrics.metadata.get("datasets_from_pvc")
     datasets_pvc_name = input_params_metrics.metadata.get("datasets_pvc_name")
     datasets_pvc_mount_path = input_params_metrics.metadata.get("datasets_pvc_mount_path")
+
+    datasets_from_pvc = bool(datasets_from_pvc)
     
     if datasets_from_pvc is True:
         if datasets_pvc_name is None or datasets_pvc_mount_path is None:
@@ -494,6 +516,9 @@ def run_random_forest_katib_experiment(
         train_container["volumeMounts"] = volumeMounts
         template_spec["volumes"] = volumes
     '''
+    if datasets_from_pvc is True:
+        train_container["volumeMounts"] = volumeMounts
+        template_spec["volumes"] = volumes
 
     trial_spec={
         "apiVersion": "batch/v1",
@@ -708,6 +733,8 @@ def run_knn_katib_experiment(
     datasets_from_pvc = input_params_metrics.metadata.get("datasets_from_pvc")
     datasets_pvc_name = input_params_metrics.metadata.get("datasets_pvc_name")
     datasets_pvc_mount_path = input_params_metrics.metadata.get("datasets_pvc_mount_path")
+
+    datasets_from_pvc = bool(datasets_from_pvc)
     
     if datasets_from_pvc is True:
         if datasets_pvc_name is None or datasets_pvc_mount_path is None:
@@ -741,6 +768,9 @@ def run_knn_katib_experiment(
         train_container["volumeMounts"] = volumeMounts
         template_spec["volumes"] = volumes
     '''
+    if datasets_from_pvc is True:
+        train_container["volumeMounts"] = volumeMounts
+        template_spec["volumes"] = volumes
 
     trial_spec={
         "apiVersion": "batch/v1",
@@ -952,6 +982,8 @@ def run_lr_katib_experiment(
     datasets_from_pvc = input_params_metrics.metadata.get("datasets_from_pvc")
     datasets_pvc_name = input_params_metrics.metadata.get("datasets_pvc_name")
     datasets_pvc_mount_path = input_params_metrics.metadata.get("datasets_pvc_mount_path")
+
+    datasets_from_pvc = bool(datasets_from_pvc)
     
     if datasets_from_pvc is True:
         if datasets_pvc_name is None or datasets_pvc_mount_path is None:
@@ -980,11 +1012,11 @@ def run_lr_katib_experiment(
             "name": "models", 
             "mountPath": "/opt/lr/models"
         })
+    '''
 
-    if datasets_from_pvc is True or save_model is True:
+    if datasets_from_pvc is True:
         train_container["volumeMounts"] = volumeMounts
         template_spec["volumes"] = volumes
-    '''
 
     trial_spec={
         "apiVersion": "batch/v1",
@@ -1079,6 +1111,7 @@ def run_xgboost_train(
 ):
     import pandas as pd
     import xgboost as xgb
+    from xgboost import XGBClassifier
     import joblib
     import json
 
@@ -1094,26 +1127,13 @@ def run_xgboost_train(
 
     dtrain = xgb.DMatrix(x_train_df.values, label=y_train_df.values)
     dtest = xgb.DMatrix(x_test_df.values, label=y_test_df.values)
-
-    scale_pos_weight = len(y_train_df[y_train_df == 0]) / len(y_train_df[y_train_df == 1])
-
-    param = {
-        'eta': learning_rate, 
-        'objective': 'binary:logistic',
-        'eval_metric': 'logloss',
-        'scale_pos_weight': scale_pos_weight
-    }
-
-    evallist = [(dtest, 'test')]
-    num_round = n_estimators
-
-    xgb_model = xgb.train(
-        param, 
-        dtrain, 
-        num_round, 
-        evallist, 
-        early_stopping_rounds=10
+  
+    xgb_model = XGBClassifier(
+        n_estimators=n_estimators, 
+        learning_rate= learning_rate
     )
+    
+    xgb_model.fit(x_train_df, y_train_df.values.ravel())
     
     preds = xgb_model.predict(dtest)
 
@@ -1211,7 +1231,7 @@ def run_knn_train(
     accuracy = accuracy_score(y_test_df.values, y_pred)
 
     # Save the model
-    joblib.dump(model, model.path)
+    joblib.dump(knn_model, model.path)
 
     data = {}
     data['accuracy'] = accuracy
@@ -1257,7 +1277,7 @@ def run_lr_train(
     accuracy = accuracy_score(y_test_df.values, y_pred)
 
     # Save the model
-    joblib.dump(model, model.path)
+    joblib.dump(lr_model, model.path)
 
     data = {}
     data['accuracy'] = accuracy
@@ -1267,7 +1287,7 @@ def run_lr_train(
         json.dump(data, file, indent=4)
 
 @dsl.component(
-    base_image='python:3.9',
+    base_image='python:3.10-slim',
     packages_to_install=['joblib==1.4.2', 'scikit-learn==1.5.1', 'xgboost==2.0.3']# 
 )
 def choose_model(
@@ -1280,7 +1300,7 @@ def choose_model(
     rf_file: Input[Artifact],
     knn_file: Input[Artifact],
     final_model: Output[Model],
-    final_model_file: Output[Artifact]
+    result: Output[Artifact]
 ) -> None:
     import joblib
     import json
@@ -1317,57 +1337,60 @@ def choose_model(
         result_string += f'{model_name:17} : {acc}\n'
     print(result_string)
 
+    # Write the result to a file
     data = {}
     data['accuracy'] = accuracy[best_model_name]
     data['model_path'] = final_model.path
 
-    with open(file=final_model_file.path, mode='w', encoding='utf8') as file:
+    with open(file=result.path, mode='w', encoding='utf8') as file:
         json.dump(data, file, indent=4)
 
 @dsl.component(
-    base_image='python:3.9',
+    base_image='python:3.10-slim',
     packages_to_install=['joblib==1.4.2', 'scikit-learn==1.5.1', 'xgboost==2.0.3']
 )
 def change_model(
+    old_model_path: str, 
+    old_model_file_path: str, 
     new_model: Input[Model],
-    new_model_file: Input[Artifact],
-    nas_path: str
-    # final_model: Output[Model],
-    # result: Output[Artifact]
-) -> None:
+    new_model_file: Input[Artifact], 
+):
     import joblib
     import json
     import os
 
-    existing_model_path = os.path.join(nas_path, 'best_model.joblib')
-    existing_model_file_path = os.path.join(nas_path, 'model_file.json')
+    with open(new_model_file.path, 'r') as f:
+        data_new = json.load(f)
+    new_model_accuracy = data_new['accuracy']
 
-    if os.path.exists(existing_model_path) and os.path.exists(existing_model_file_path):
-        with open(existing_model_file_path, 'r') as f:
-            existing_accuracy = json.load(f)['accuracy']
+    new_model_model = joblib.load(new_model.path)
 
-        with open(new_model_file.path, 'r') as f:
-            data = json.load(f)
-        new_model_accuracy = data['accuracy']
+    if not (os.path.exists(old_model_path) and os.path.exists(old_model_file_path)):
+        joblib.dump(new_model_model, old_model_path)
+        with open(old_model_file_path, 'w', encoding='utf-8') as file:
+            json.dump(data_new, file, indent=4)
+        result_message = f"New model saved to NAS. Accuracy: {new_model_accuracy}"
+        return None
+    
+    try:
+        with open(old_model_file_path, 'r') as f:
+            data_old = json.load(f)
+        old_model_accuracy = data_old['accuracy']
 
-        if new_model_accuracy > existing_accuracy:
-            joblib.dump(new_model, existing_model_path)
-            joblib.dump(new_model_file, existing_model_file_path)
-            result_message = f"Model updated. New accuracy: {new_model_accuracy}, Old accuracy: {existing_accuracy}"
+        if new_model_accuracy > old_model_accuracy:
+            joblib.dump(new_model_model, old_model_path)
+            with open(old_model_file_path, 'w', encoding='utf-8') as file:
+                json.dump(data_new, file, indent=4)
+            result_message = f"Model updated. New accuracy: {new_model_accuracy}, Old accuracy: {old_model_accuracy}"
         else:
-            result_message = f"Existing model retained. Existing accuracy: {existing_accuracy}, New accuracy: {new_model_accuracy}"
-    else:
-        joblib.dump(new_model, existing_model_path)
-        joblib.dump(new_model_file, existing_model_file_path)
+            result_message = f"Existing model retained. Existing accuracy: {old_model_accuracy}, New accuracy: {new_model_accuracy}"
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        joblib.dump(new_model_model, old_model_path)
+        with open(old_model_file_path, 'w', encoding='utf-8') as file:
+            json.dump(data_new, file, indent=4)
         result_message = f"New model saved to NAS. Accuracy: {new_model_accuracy}"
 
     print(result_message)
-    # joblib.dump(joblib.load(existing_model_path), final_model.path)
-
-    # with open(result.path, 'w') as f:
-    #     f.write(result_message)
-
-    
 
 @dsl.pipeline(
     name="compose", 
@@ -1375,14 +1398,29 @@ def change_model(
 )
 def compose_pipeline(
     params_pvc_name: str = "params-pvc", 
-    params_json_file_path: str = "/mnt/params/params.json"
+    params_json_file_path: str = "/mnt/params/params_heart_disease.json", 
+    models_pvc_name: str = "models-pvc"
 ):
+    sparkapplication_dict = get_spark_job_definition()
+
+    k8s_apply_op = components.load_component_from_file("k8s-apply-component.yaml")
+    apply_sparkapplication_task = k8s_apply_op(object=json.dumps(sparkapplication_dict))
+    apply_sparkapplication_task.set_caching_options(enable_caching=False)
+
+    check_sparkapplication_status_op = components.load_component_from_file("checkSparkapplication.yaml")
+    check_sparkapplication_status_task = check_sparkapplication_status_op(
+        name=sparkapplication_dict["metadata"]["name"],
+        namespace=sparkapplication_dict["metadata"]["namespace"]
+    ).after(apply_sparkapplication_task)
+    check_sparkapplication_status_task.set_caching_options(enable_caching=False)
+
     load_datasets_task = load_file_from_nas_to_minio(
         x_train_input_path="/mnt/datasets/heart_disease/x_train.csv", 
         x_test_input_path="/mnt/datasets/heart_disease/x_test.csv", 
         y_train_input_path="/mnt/datasets/heart_disease/y_train.csv", 
         y_test_input_path="/mnt/datasets/heart_disease/y_test.csv", 
-    )
+    ).after(check_sparkapplication_status_task)
+    load_datasets_task.set_caching_options(enable_caching=False)
 
     kubernetes.mount_pvc(
         task=load_datasets_task, 
@@ -1392,7 +1430,8 @@ def compose_pipeline(
 
     parse_input_json_task = parse_input_json(
         json_file_path=params_json_file_path
-    )
+    ).after(load_datasets_task)
+    parse_input_json_task.set_caching_options(enable_caching=False)
 
     kubernetes.mount_pvc(
         task=parse_input_json_task, 
@@ -1460,9 +1499,16 @@ def compose_pipeline(
     )
 
     change_model_task = change_model(
-        new_model=choose_model_task.outputs['final_model'],
-        new_model_file=choose_model_task.outputs['final_model_file'],
-        nas_path="/mnt/model-pvc"
+        old_model_path="/mnt/models/heart_disease_model.pkl", 
+        old_model_file_path="/mnt/models/heart_disease_model.json", 
+        new_model=choose_model_task.outputs["final_model"], 
+        new_model_file=choose_model_task.outputs["result"]
+    )
+
+    kubernetes.mount_pvc(
+        task=change_model_task, 
+        pvc_name=models_pvc_name, 
+        mount_path="/mnt/models"
     )
 
 if __name__ == "__main__":
